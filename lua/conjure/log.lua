@@ -11,7 +11,6 @@ local config = autoload("conjure.config")
 local text = autoload("conjure.text")
 local editor = autoload("conjure.editor")
 local timer = autoload("conjure.timer")
-local sponsors = require("conjure.sponsors")
 local vim = _G.vim
 local M = define("conjure.log")
 M.state = (M.state or {["last-open-cmd"] = "vsplit", buffers = {}, hud = {id = nil, timer = nil, ["created-at-ms"] = 0, ["low-priority-spam"] = {streak = 0, ["help-displayed?"] = false}}, ["jump-to-latest"] = {mark = nil, ns = vim.api.nvim_create_namespace("conjure_log_jump_to_latest")}})
@@ -42,8 +41,7 @@ local function on_new_log_buf(buf)
     vim.bo[buf]["syntax"] = "on"
   else
   end
-  math.randomseed(os.time())
-  return vim.api.nvim_buf_set_lines(buf, 0, -1, false, {str.join({client.get("comment-prefix"), "Sponsored by @", core.get(sponsors, core.inc(math.floor(core.rand(core.dec(core.count(sponsors)))))), " \226\157\164"})})
+  return vim.api.nvim_buf_set_lines(buf, 0, -1, false, {""})
 end
 local function upsert_buf()
   return buffer["upsert-hidden"](log_buf_name(), client.wrap(on_new_log_buf))

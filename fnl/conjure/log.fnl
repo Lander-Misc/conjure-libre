@@ -8,7 +8,6 @@
 (local text (autoload :conjure.text))
 (local editor (autoload :conjure.editor))
 (local timer (autoload :conjure.timer))
-(local sponsors (require :conjure.sponsors))
 (local vim _G.vim)
 
 (local M (define :conjure.log))
@@ -53,13 +52,9 @@
     (vim.treesitter.stop buf)
     (tset vim.bo buf :syntax "on"))
 
-  (math.randomseed (os.time))
   (vim.api.nvim_buf_set_lines
     buf 0 -1 false
-    [(str.join [(client.get :comment-prefix)
-                "Sponsored by @"
-                (core.get sponsors (core.inc (math.floor (core.rand (core.dec (core.count sponsors))))))
-                " ❤"])]))
+    [""]))
 
 (fn upsert-buf []
   (buffer.upsert-hidden
