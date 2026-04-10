@@ -298,6 +298,7 @@
   {:top "normal zt"
    :center "normal zz"
    :bottom "normal zb"
+   :last "normal G"
    :none nil})
 
 (fn M.jump-to-latest []
@@ -543,7 +544,7 @@
       (when (or (= M.state.last-open-cmd :split)
                 (= M.state.last-open-cmd :vsplit))
         (create-win M.state.last-open-cmd))
-      (M.close-visible windows))))
+      (M.close-visible))))
 
 (fn M.dbg [desc ...]
   (when (config.get-in [:debug])
