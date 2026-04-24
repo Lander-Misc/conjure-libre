@@ -17,8 +17,8 @@
    {:python
     {:stdio
      {:command "python3 -iq"
-      :prompt-pattern ">>> "
-      :delay-stderr-ms 10}}}})
+      :prompt_pattern ">>> "
+      :delay_stderr_ms 10}}}})
 
 (when (config.get-in [:mapping :enable_defaults])
   (config.merge
@@ -244,9 +244,9 @@
       (core.assoc
         (state) :repl
         (stdio.start
-          {:prompt-pattern (cfg [:prompt-pattern])
+          {:prompt-pattern (cfg [:prompt_pattern])
            :cmd (cfg [:command])
-           :delay-stderr-ms (cfg [:delay-stderr-ms])
+           :delay-stderr-ms (cfg [:delay_stderr_ms])
 
            :on-success
            (fn []
@@ -288,9 +288,7 @@
       (repl.send-signal :sigint))))
 
 (fn M.on-load []
-  ;; Start up REPL only if g.conjure#client_on_load is v:true.
-  (when (config.get-in [:client_on_load])
-    (M.start)))
+  (M.start))
 
 (fn M.on-filetype []
   (mapping.buf

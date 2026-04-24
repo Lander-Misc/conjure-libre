@@ -182,7 +182,7 @@ M.start = function()
         return nil
       end
     end
-    return a.assoc(state(), "repl", stdio.start({["prompt-pattern"] = cfg({"prompt_pattern"}), cmd = (repl_command_for_filetype() .. " " .. cfg({"args"})), ["delay-stderr-ms"] = cfg({"delay-stderr-ms"}), ["on-success"] = _17_, ["on-error"] = _20_, ["on-exit"] = _21_, ["on-stray-output"] = _24_}))
+    return a.assoc(state(), "repl", stdio.start({["prompt-pattern"] = cfg({"prompt_pattern"}), cmd = (repl_command_for_filetype() .. " " .. cfg({"args"})), ["delay-stderr-ms"] = cfg({"delay_stderr_ms"}), ["on-success"] = _17_, ["on-error"] = _20_, ["on-exit"] = _21_, ["on-stray-output"] = _24_}))
   end
 end
 local function warning_msg()
@@ -192,22 +192,18 @@ local function warning_msg()
   return a.map(_27_, {"// WARNING! Node.js REPL limitations require transformations:", "// 1. ES6 'import' statements are converted to 'require(...)' calls.", "// 2. Arrow functions ('const fn = () => ...') are converted to 'function fn() ...' declarations to allow re-definition."})
 end
 M["on-load"] = function()
-  if config["get-in"]({"client_on_load"}) then
-    M.start()
-    return warning_msg()
-  else
-    return log.append({"Not starting repl"})
-  end
+  M.start()
+  return warning_msg()
 end
 M["on-exit"] = function()
   return M.stop()
 end
 M.interrupt = function()
-  local function _29_(repl)
+  local function _28_(repl)
     log.append({(M["comment-prefix"] .. " Sending interrupt signal.")}, {["break?"] = true})
     return repl["send-signal"]("sigint")
   end
-  return with_repl_or_warn(_29_)
+  return with_repl_or_warn(_28_)
 end
 M["on-filetype"] = function()
   mapping.buf("JavascriptStart", cfg({"mapping", "start"}), M.start, {desc = "Start the Javascript REPL"})

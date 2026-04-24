@@ -13,7 +13,7 @@ local log = autoload("conjure.log")
 local b64 = autoload("conjure.remote.transport.base64")
 local ts = autoload("conjure.tree-sitter")
 local M = define("conjure.client.python.stdio")
-config.merge({client = {python = {stdio = {command = "python3 -iq", ["prompt-pattern"] = ">>> ", ["delay-stderr-ms"] = 10}}}})
+config.merge({client = {python = {stdio = {command = "python3 -iq", prompt_pattern = ">>> ", delay_stderr_ms = 10}}}})
 if config["get-in"]({"mapping", "enable_defaults"}) then
   config.merge({client = {python = {stdio = {mapping = {start = "cs", stop = "cS", interrupt = "ei"}}}}})
 else
@@ -224,7 +224,7 @@ M.start = function()
       local function _29_(msg)
         return log.dbg(M["format-msg"](M.unbatch({msg})), {["join-first?"] = true})
       end
-      return core.assoc(state(), "repl", stdio.start({["prompt-pattern"] = cfg({"prompt-pattern"}), cmd = cfg({"command"}), ["delay-stderr-ms"] = cfg({"delay-stderr-ms"}), ["on-success"] = _21_, ["on-error"] = _25_, ["on-exit"] = _26_, ["on-stray-output"] = _29_}))
+      return core.assoc(state(), "repl", stdio.start({["prompt-pattern"] = cfg({"prompt_pattern"}), cmd = cfg({"command"}), ["delay-stderr-ms"] = cfg({"delay_stderr_ms"}), ["on-success"] = _21_, ["on-error"] = _25_, ["on-exit"] = _26_, ["on-stray-output"] = _29_}))
     end
   end
 end
@@ -239,24 +239,20 @@ M.interrupt = function()
   return with_repl_or_warn(_32_)
 end
 M["on-load"] = function()
-  if config["get-in"]({"client_on_load"}) then
-    return M.start()
-  else
-    return nil
-  end
+  return M.start()
 end
 M["on-filetype"] = function()
-  local function _34_()
+  local function _33_()
     return M.start()
   end
-  mapping.buf("PythonStart", cfg({"mapping", "start"}), _34_, {desc = "Start the Python REPL"})
-  local function _35_()
+  mapping.buf("PythonStart", cfg({"mapping", "start"}), _33_, {desc = "Start the Python REPL"})
+  local function _34_()
     return M.stop()
   end
-  mapping.buf("PythonStop", cfg({"mapping", "stop"}), _35_, {desc = "Stop the Python REPL"})
-  local function _36_()
+  mapping.buf("PythonStop", cfg({"mapping", "stop"}), _34_, {desc = "Stop the Python REPL"})
+  local function _35_()
     return M.interrupt()
   end
-  return mapping.buf("PythonInterrupt", cfg({"mapping", "interrupt"}), _36_, {desc = "Interrupt the current evaluation"})
+  return mapping.buf("PythonInterrupt", cfg({"mapping", "interrupt"}), _35_, {desc = "Interrupt the current evaluation"})
 end
 return M
