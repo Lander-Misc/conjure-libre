@@ -22,7 +22,7 @@
 
 (fn parse! []
   (let [(ok? parser) (pcall vim.treesitter.get_parser)]
-    (if ok?
+    (if (and ok? (not= nil parser))
       (parser:parse))))
 
 (fn node->str [node]
