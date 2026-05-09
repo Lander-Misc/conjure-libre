@@ -12,7 +12,8 @@ local query_cache = {}
 local function build_completion_query(ts_lang, cmpl_resource)
   local query_path = string.format(symbol_query_path_template, cmpl_resource)
   local query_text = res["get-resource-contents"](query_path)
-  if query_text then
+  local lang_avail = pcall(vim.treesitter.language.inspect, ts_lang)
+  if (query_text and lang_avail) then
     return vim.treesitter.query.parse(ts_lang, query_text)
   else
     return nil
@@ -99,26 +100,29 @@ local function get_node_text(node, buffer, meta)
   end
 end
 local function get_completions_for_query(query)
-  ts["parse!"]()
-  local buffer = vim.api.nvim_get_current_buf()
-  local cursor_node = vim.treesitter.get_node()
-  local row, _ = unpack(vim.api.nvim_win_get_cursor(0))
-  local scope_captures = query:iter_captures(cursor_node:root(), buffer, 0, row)
-  local scopes = extract_scopes(query, scope_captures)
-  local captures = query:iter_captures(cursor_node:root(), buffer, 0, row)
-  local results = {}
-  for id, n, meta in captures do
-    local captured_label = query.captures[id]
-    if ("global.define" == captured_label) then
-      table.insert(results, get_node_text(n, buffer, meta))
-    elseif (("local.bind" == captured_label) and not cursor_node:equal(n:parent()) and is_in_scope(cursor_node, get_nth_scope_parent(1, n, scopes))) then
-      table.insert(results, get_node_text(n, buffer, meta))
-    elseif (("local.define" == captured_label) and not cursor_node:equal(n:parent()) and is_in_scope(cursor_node, get_nth_scope_parent(2, n, scopes))) then
-      table.insert(results, get_node_text(n, buffer, meta))
-    else
+  if (nil ~= ts["parse!"]()) then
+    local buffer = vim.api.nvim_get_current_buf()
+    local cursor_node = vim.treesitter.get_node()
+    local row, _ = unpack(vim.api.nvim_win_get_cursor(0))
+    local scope_captures = query:iter_captures(cursor_node:root(), buffer, 0, row)
+    local scopes = extract_scopes(query, scope_captures)
+    local captures = query:iter_captures(cursor_node:root(), buffer, 0, row)
+    local results = {}
+    for id, n, meta in captures do
+      local captured_label = query.captures[id]
+      if ("global.define" == captured_label) then
+        table.insert(results, get_node_text(n, buffer, meta))
+      elseif (("local.bind" == captured_label) and not cursor_node:equal(n:parent()) and is_in_scope(cursor_node, get_nth_scope_parent(1, n, scopes))) then
+        table.insert(results, get_node_text(n, buffer, meta))
+      elseif (("local.define" == captured_label) and not cursor_node:equal(n:parent()) and is_in_scope(cursor_node, get_nth_scope_parent(2, n, scopes))) then
+        table.insert(results, get_node_text(n, buffer, meta))
+      else
+      end
     end
+    return util["ordered-distinct"](results)
+  else
+    return {}
   end
-  return util["ordered-distinct"](results)
 end
 M["get-completions-at-cursor"] = function(ts_lang, cmpl_resource)
   local query = get_completion_query(ts_lang, cmpl_resource)
@@ -132,13 +136,13 @@ M["make-prefix-filter"] = function(prefix)
   local sanitized_prefix = string.gsub((prefix or ""), "%%", "%%%%")
   local prefix_pattern = ("^" .. sanitized_prefix)
   local prefix_filter
-  local function _15_(s)
+  local function _16_(s)
     return string.match(s, prefix_pattern)
   end
-  prefix_filter = _15_
-  local function _16_(list)
+  prefix_filter = _16_
+  local function _17_(list)
     return a.filter(prefix_filter, list)
   end
-  return _16_
+  return _17_
 end
 return M

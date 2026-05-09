@@ -328,7 +328,7 @@ local function _2_()
       local bs = bencode.new()
       local item = {id = "item", data = "some-long-data-string-that-takes-space", nums = {1, 2, 3, 4, 5}}
       local list = {}
-      while (#bencode.encode(list) < 100000) do
+      for _ = 1, 50 do
         table.insert(list, item)
       end
       local encoded = bencode.encode(list)

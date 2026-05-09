@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 
+set -o pipefail
+
 XDG_CONFIG_HOME=$(pwd)/.test
 XDG_DATA_HOME=$(pwd)/.test/data
 XDG_STATE_HOME=$(pwd)/.test/state
 export XDG_CONFIG_HOME XDG_DATA_HOME XDG_STATE_HOME
 
-nvim --headless -c 'PlenaryBustedDirectory lua/conjure-spec'
+printf 'Starting...\n'
+nvim --headless -c 'PlenaryBustedDirectory lua/conjure-spec' 2>&1 | sed 's/Starting\.\.\.//'

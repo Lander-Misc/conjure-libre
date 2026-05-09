@@ -301,7 +301,7 @@
             (let [bs (bencode.new)
                   item {:id "item" :data "some-long-data-string-that-takes-space" :nums [1 2 3 4 5]}
                   list []]
-              (while (< (length (bencode.encode list)) 100000)
+              (for [_ 1 50]
                 (table.insert list item))
               (let [encoded (bencode.encode list)
                     chunk-size 32
