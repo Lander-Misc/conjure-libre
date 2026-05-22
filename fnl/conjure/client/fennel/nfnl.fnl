@@ -51,8 +51,8 @@
                      (text.prefixed-lines "; ")
                      (log.append)))
                :cfg (let [config-map (nfnl-config.find-and-load (fs.file-name-root path))]
-                      (when config-map
-                        (nfnl-config.cfg-fn config-map)))})]
+                      (or config-map.cfg
+                          (nfnl-config.cfg-fn {} {:root-dir (fs.file-name-root path)})))})]
       (tset M.repls path r)
       r)))
 

@@ -21,4 +21,14 @@ M.emit = function(...)
   end
   return nil
 end
+M["emit-data"] = function(name, data)
+  do
+    local pattern = ("Conjure" .. text["upper-first"](name))
+    local function _3_()
+      return vim.api.nvim_exec_autocmds("User", {pattern = pattern, data = data})
+    end
+    client.schedule(_3_)
+  end
+  return nil
+end
 return M

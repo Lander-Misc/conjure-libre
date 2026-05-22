@@ -100,13 +100,19 @@ M["doc-str"] = function(opts)
   local code = ("(if (in (hy.mangle '" .. obj0 .. ") _hy_macros)\n                    (help (get _hy_macros (hy.mangle '" .. obj0 .. ")))\n                    (help " .. obj0 .. "))")
   local function _16_(repl)
     local function _17_(msg)
+      local content = (msg.err or msg.out)
       local _18_
       if msg.err then
         _18_ = "(err) "
       else
         _18_ = "(doc) "
       end
-      return log.append(text["prefixed-lines"]((msg.err or msg.out), (M["comment-prefix"] .. _18_)))
+      log.append(text["prefixed-lines"](content, (M["comment-prefix"] .. _18_)))
+      if opts["on-result"] then
+        return opts["on-result"](content)
+      else
+        return nil
+      end
     end
     return repl.send(prep_code(code), _17_)
   end
@@ -134,17 +140,17 @@ M.start = function()
   if state("repl") then
     return log.append({(M["comment-prefix"] .. "Can't start, REPL is already running."), (M["comment-prefix"] .. "Stop the REPL with " .. config["get-in"]({"mapping", "prefix"}) .. cfg({"mapping", "stop"}))}, {["break?"] = true})
   else
-    local function _22_()
+    local function _23_()
       display_repl_status("started")
-      local function _23_(repl)
+      local function _24_(repl)
         return repl.send(prep_code("(import sys) (setv sys.ps2 \"\") (del sys)"))
       end
-      return with_repl_or_warn(_23_)
+      return with_repl_or_warn(_24_)
     end
-    local function _24_(err)
+    local function _25_(err)
       return display_repl_status(err)
     end
-    local function _25_(code, signal)
+    local function _26_(code, signal)
       if (("number" == type(code)) and (code > 0)) then
         log.append({(M["comment-prefix"] .. "process exited with code " .. code)})
       else
@@ -155,10 +161,10 @@ M.start = function()
       end
       return M.stop()
     end
-    local function _28_(msg)
+    local function _29_(msg)
       return display_result(msg)
     end
-    return core.assoc(state(), "repl", stdio.start({["prompt-pattern"] = cfg({"prompt_pattern"}), cmd = cfg({"command"}), ["on-success"] = _22_, ["on-error"] = _24_, ["on-exit"] = _25_, ["on-stray-output"] = _28_}))
+    return core.assoc(state(), "repl", stdio.start({["prompt-pattern"] = cfg({"prompt_pattern"}), cmd = cfg({"command"}), ["on-success"] = _23_, ["on-error"] = _25_, ["on-exit"] = _26_, ["on-stray-output"] = _29_}))
   end
 end
 M["on-load"] = function()
@@ -169,21 +175,21 @@ M["on-exit"] = function()
 end
 M.interrupt = function()
   log.dbg("sending interrupt message", "")
-  local function _30_(repl)
+  local function _31_(repl)
     log.append({(M["comment-prefix"] .. " Sending interrupt signal.")}, {["break?"] = true})
     return repl["send-signal"]("sigint")
   end
-  return with_repl_or_warn(_30_)
+  return with_repl_or_warn(_31_)
 end
 M["on-filetype"] = function()
-  local function _31_()
+  local function _32_()
     return M.start()
   end
-  mapping.buf("HyStart", cfg({"mapping", "start"}), _31_, {desc = "Start the REPL"})
-  local function _32_()
+  mapping.buf("HyStart", cfg({"mapping", "start"}), _32_, {desc = "Start the REPL"})
+  local function _33_()
     return M.stop()
   end
-  mapping.buf("HyStop", cfg({"mapping", "stop"}), _32_, {desc = "Stop the REPL"})
+  mapping.buf("HyStop", cfg({"mapping", "stop"}), _33_, {desc = "Stop the REPL"})
   return mapping.buf("HyInterrupt", cfg({"mapping", "interrupt"}), M.interrupt, {desc = "Interrupt the current evaluation"})
 end
 return M

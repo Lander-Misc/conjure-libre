@@ -44,11 +44,7 @@ M["repl-for-path"] = function(path)
     local _7_
     do
       local config_map = nfnl_config["find-and-load"](fs["file-name-root"](path))
-      if config_map then
-        _7_ = nfnl_config["cfg-fn"](config_map)
-      else
-        _7_ = nil
-      end
+      _7_ = (config_map.cfg or nfnl_config["cfg-fn"]({}, {["root-dir"] = fs["file-name-root"](path)}))
     end
     r = repl.new({["on-error"] = _6_, cfg = _7_})
     M.repls[path] = r
@@ -59,10 +55,10 @@ M["module-path"] = function(path)
   if path then
     local parts = fs["split-path"](fs["file-name-root"](path))
     local fnl_and_below
-    local function _10_(_241)
+    local function _9_(_241)
       return (_241 ~= "fnl")
     end
-    fnl_and_below = core["drop-while"](_10_, parts)
+    fnl_and_below = core["drop-while"](_9_, parts)
     if ("fnl" == core.first(fnl_and_below)) then
       return str.join(".", core.rest(fnl_and_below))
     else

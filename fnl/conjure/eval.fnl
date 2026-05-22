@@ -188,9 +188,15 @@
     (event.emit name)
     (f ...)))
 
-(local doc-str (M.wrap-emit
-                :doc
-                (client-exec-fn :doc :doc-str)))
+(local doc-str
+  (let [exec (client-exec-fn :doc :doc-str)]
+    (fn [opts]
+      (let [user-on-result opts.on-result]
+        (exec (core.assoc opts :on-result
+                (fn [result]
+                  (event.emit-data :doc result)
+                  (when user-on-result
+                    (user-on-result result)))))))))
 
 (local def-str (M.wrap-emit
                 :def
@@ -298,14 +304,16 @@
          :node node
          :origin :word}))))
 
-(fn M.doc-word []
+(fn M.doc-word [extra-opts]
   (let [{: content : range : node} (extract.word)]
     (when (not (core.empty? content))
       (doc-str
-        {:code content
-         :range range
-         :node node
-         :origin :word}))))
+        (core.merge
+          {:code content
+           :range range
+           :node node
+           :origin :word}
+          extra-opts)))))
 
 (fn M.def-word []
   (let [{: content : range : node} (extract.word)]

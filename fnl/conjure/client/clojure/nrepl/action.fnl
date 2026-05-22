@@ -156,34 +156,43 @@
                              (or (core.get msg :out)
                                  (core.get msg :err)))
                            msgs)
-                (core.run!
-                  #(ui.display-result
-                     $1
-                     {:simple-out? true :ignore-nil? true})
-                  msgs)
+                (do
+                  (core.run!
+                    #(ui.display-result
+                       $1
+                       {:simple-out? true :ignore-nil? true})
+                    msgs)
+                  (when opts.on-result
+                    (opts.on-result
+                      (str.join "\n"
+                        (core.map
+                          #(or (core.get $1 :out) (core.get $1 :err) "")
+                          msgs)))))
                 (do
                   (log.append ["; No results for (doc ...), checking nREPL info ops"])
                   (with-info
                     opts
                     (fn [info]
-                      (if
-                        (core.nil? info)
-                        (log.append ["; No information found, all I can do is wish you good luck and point you to https://duckduckgo.com/"])
+                      (let [lines
+                            (if
+                              (core.nil? info)
+                              ["; No information found, all I can do is wish you good luck and point you to https://duckduckgo.com/"]
 
-                        (= :string (type info.javadoc))
-                        (log.append (java-info->lines info))
+                              (= :string (type info.javadoc))
+                              (java-info->lines info)
 
-                        (= :string (type info.doc))
-                        (log.append
-                          (core.concat
-                            [(str.join ["; " info.ns "/" info.name])
-                             (str.join ["; " info.arglists-str])]
-                            (text.prefixed-lines info.doc "; ")))
+                              (= :string (type info.doc))
+                              (core.concat
+                                [(str.join ["; " info.ns "/" info.name])
+                                 (str.join ["; " info.arglists-str])]
+                                (text.prefixed-lines info.doc "; "))
 
-                        (log.append
-                          (core.concat
-                            ["; Unknown result, it may still be helpful"]
-                            (text.prefixed-lines (core.pr-str info) "; "))))))))))))))
+                              (core.concat
+                                ["; Unknown result, it may still be helpful"]
+                                (text.prefixed-lines (core.pr-str info) "; ")))]
+                        (log.append lines)
+                        (when opts.on-result
+                          (opts.on-result (str.join "\n" lines))))))))))))))
 
 (fn nrepl->nvim-path [path]
   (if

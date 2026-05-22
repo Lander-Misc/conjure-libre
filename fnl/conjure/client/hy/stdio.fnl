@@ -93,10 +93,13 @@
         (repl.send
           (prep-code code)
           (fn [msg]
-            (log.append (text.prefixed-lines
-                          (or msg.err msg.out)
-                          (.. M.comment-prefix
-                              (if msg.err "(err) " "(doc) "))))))))))
+            (let [content (or msg.err msg.out)]
+              (log.append (text.prefixed-lines
+                            content
+                            (.. M.comment-prefix
+                                (if msg.err "(err) " "(doc) "))))
+              (when opts.on-result
+                (opts.on-result content)))))))))
 
 (fn display-repl-status [status]
   (let [repl (state :repl)]

@@ -15,4 +15,13 @@
           (table.remove names)))))
   nil)
 
+(fn M.emit-data [name data]
+  (let [pattern (.. :Conjure (text.upper-first name))]
+    (client.schedule
+      (fn []
+        (vim.api.nvim_exec_autocmds
+          :User
+          {: pattern :data data}))))
+  nil)
+
 M

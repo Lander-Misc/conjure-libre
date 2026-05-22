@@ -601,8 +601,7 @@ configure the ones you care about one at a time you can set:
 
                                                  *g:conjure#highlight#enabled*
 `g:conjure#highlight#enabled`
-            Enable highlighting of evaluated forms. Requires support for the
-            highlight API, so you'll need Neovim 0.5+.
+            Enable highlighting of evaluated forms.
             Default: `false`
 
                                                    *g:conjure#highlight#group*
@@ -847,7 +846,6 @@ configure the ones you care about one at a time you can set:
 
             This is experimental and requires the following:
 
-             * Neovim 0.5+ with tree-sitter support
              * https://github.com/nvim-treesitter/nvim-treesitter
              * The appropriate `:TSInstall [filetype]` to have already been run.
              * This flag to be `true`.
@@ -1003,7 +1001,28 @@ pull request if we agree!).
 
                                                                   *ConjureDoc*
 `ConjureDoc`
-            After requesting documentation.
+            After a documentation lookup resolves. The result string is
+            attached to the event's `data` field (see |nvim_create_autocmd()|),
+            so you can render it in your own UI (for example, an LSP-style
+            floating window).
+
+            This fires from the client's result callback, so it will not
+            fire if the client errored before producing a result. If the
+            lookup yields no useful information the client may still fire
+            this event with a placeholder message as `data`.
+>
+              lua vim.api.nvim_create_autocmd("User", {
+                pattern = "ConjureDoc",
+                callback = function(ev)
+                  vim.lsp.util.open_floating_preview(
+                    vim.split(ev.data, "\n"), "markdown", { border = "rounded" })
+                end,
+              })
+<
+            You can also pass `on-result` directly to `M.doc-word` via
+            `extra-opts` for a one-off callback without a global autocmd:
+>
+              :lua require("conjure.eval")["doc-word"]({ ["on-result"] = print })
 
                                                                   *ConjureDef*
 `ConjureDef`
