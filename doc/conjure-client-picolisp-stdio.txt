@@ -1,0 +1,69 @@
+                                               *conjure-client-picolisp-stdio*
+
+==============================================================================
+CONTENTS                              *conjure-client-picolisp-stdio-contents*
+
+    1. Introduction ........ |conjure-client-picolisp-stdio-introduction|
+    2. Mappings ................ |conjure-client-picolisp-stdio-mappings|
+    3. Configuration ...... |conjure-client-picolisp-stdio-configuration|
+
+==============================================================================
+INTRODUCTION                      *conjure-client-picolisp-stdio-introduction*
+
+Conjure starts a picolisp REPL within Neovim when you first open a Picolisp file.
+
+You should be able to evaluate files and forms as you would with other Conjure
+supported languages right away.
+
+Check out `:ConjureSchool` if you're unsure about what evaluation operations
+you can perform.
+
+ * https://picolisp.com/wiki/?home
+
+==============================================================================
+MAPPINGS                              *conjure-client-picolisp-stdio-mappings*
+
+These mappings are the defaults, you can change them as described in
+|conjure-mappings| and |conjure-configuration|.
+
+See |conjure-client-picolisp-stdio-configuration| for specific configuration
+options relevant to these mappings.
+
+<localleader>cs          Start the picolisp REPL if it's not running already.
+
+<localleader>cS          Stop any existing picolisp REPL.
+
+==============================================================================
+CONFIGURATION                    *conjure-client-picolisp-stdio-configuration*
+
+All configuration can be set as described in |conjure-configuration|.
+
+
+                               *g:conjure#client#picolisp#stdio#mapping#start*
+`g:conjure#client#picolisp#stdio#mapping#start`
+            Start the picolisp REPL if it's not running already.
+            Default: `"cs"`
+
+                                *g:conjure#client#picolisp#stdio#mapping#stop*
+`g:conjure#client#picolisp#stdio#mapping#stop`
+            Stop any existing picolisp REPL.
+            Default: `"cS"`
+
+                                     *g:conjure#client#picolisp#stdio#command*
+`g:conjure#client#picolisp#stdio#command`
+            The default picolisp repl (ie. plain `pil +`) includes bracketed
+            paste escape sequences in its output, as well as prefixing
+            the result with an arrow `->`.
+            We can alter this behavior by running our own, simpler, read-eval-print-loop.
+            Default: >
+              `["pil" "-(prog (print '>>>) (flush) (while (read) (println (eval @)) (print '>>>) (flush)))" "+"]`
+
+                              *g:conjure#client#picolisp#stdio#prompt_pattern*
+`g:conjure#client#picolisp#stdio#prompt_pattern`
+            Lua pattern to identify a new REPL prompt. This match signals to
+            Conjure that the previous evaluation is complete and we're ready
+            to submit more code as well as collect all output prior to the
+            marker as the result.
+            Default: `">>>"`
+
+vim:tw=78:sw=2:ts=2:ft=help:norl:et:listchars=

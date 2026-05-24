@@ -10,4 +10,7 @@ RUN apt-get install -y neovim
 # RUN npm install -g typescript
 # RUN npm install -g ts-node
 
+# picolisp
+# RUN apt-get install -y picolisp
+
 CMD nvim

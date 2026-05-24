@@ -278,7 +278,8 @@ configure the ones you care about one at a time you can set:
 
             Default: >
               ["clojure", "elixir", "fennel", "janet", "hy", "julia", "racket",
-               "scheme", "lua", "lisp", "python", "ruby", "rust", "sql"]
+               "scheme", "lua", "lisp", "python", "ruby", "rust", "sql",
+               "picolisp"]
 <
                                                   *g:conjure#filetype#clojure*
 `g:conjure#filetype#clojure`
@@ -332,20 +333,29 @@ configure the ones you care about one at a time you can set:
             Help: |conjure-client-racket-stdio|
             Default: `"conjure.client.racket.stdio"`
 
+                                                     *g:conjure#filetype#ruby*
 `g:conjure#filetype#ruby`
             Client to use for `Ruby` buffers.
             Help: |conjure-client-ruby-stdio|
             Default: `"conjure.client.ruby.stdio"`
 
+                                                     *g:conjure#filetype#rust*
 `g:conjure#filetype#rust`
             Client to use for `Rust` buffers.
             Help: |conjure-client-rust-evcxr|
             Default: `"conjure.client.rust.evcxr"`
-                                                   *g:conjure#filetype#sql*
+
+                                                      *g:conjure#filetype#sql*
 `g:conjure#filetype#sql`
             Client to use for `SQL` buffers.
             Help: |conjure-client-sql-stdio|
             Default: `"conjure.client.sql.stdio"`
+
+                                                 *g:conjure#filetype#picolisp*
+`g:conjure#filetype#picolisp`
+            Client to use for `picolisp` buffers.
+            Help: |conjure-client-picolisp-stdio|
+            Default: `"conjure.client.picolisp.stdio"`
 
                                       *g:conjure#filetype_suffixes#[filetype]*
 `g:conjure#filetype_suffixes#[filetype]`
@@ -1055,6 +1065,7 @@ your dotfiles.
  - |conjure-client-ruby-stdio|
  - |conjure-client-rust-evcxr|
  - |conjure-client-common-lisp-swank|
+ - |conjure-client-picolisp-stdio|
 
 Language clients are simply Lua modules (which can be compiled from Fennel
 using Aniseed) that have a few essential properties and functions in them.
