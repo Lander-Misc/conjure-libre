@@ -1,5 +1,6 @@
 # Should be able to evaluate all of these.
 
+
 def add(a, b):
     return a + b
 
@@ -28,11 +29,13 @@ def print_things_then_return():
         print(i)
     return "all done!"
 
+
 print_things_then_return()
 
 
 def newline_in_function_bug():
     return "hey\n\n" + "\\n" + "\n" + "ho"
+
 
 newline_in_function_bug()
 
@@ -48,6 +51,7 @@ def fn_with_multiline_str():
     """
     print(f"Description: {description}")
 
+
 fn_with_multiline_str()
 
 import csv
@@ -57,7 +61,6 @@ from datetime import datetime
 # Class definition
 #   - from https://docs.python.org/3/tutorial/classes.html
 class Dog:
-
     def __init__(self, name):
         self.name = name
         self.tricks = []
@@ -65,10 +68,11 @@ class Dog:
     def add_trick(self, trick):
         self.tricks.append(trick)
 
-d = Dog('Fido')
-e = Dog('Buddy')
-d.add_trick('roll_over')
-e.add_trick('play dead')
+
+d = Dog("Fido")
+e = Dog("Buddy")
+d.add_trick("roll_over")
+e.add_trick("play dead")
 d.tricks
 e.tricks
 
@@ -77,13 +81,15 @@ e.tricks
 #   - from https://docs.python.org/3.10/tutorial/classes.html
 from dataclasses import dataclass
 
+
 @dataclass
 class Employee:
     name: str
     dept: str
     salary: int
 
-john = Employee('john', 'computer lab', 1000)
+
+john = Employee("john", "computer lab", 1000)
 john.dept
 john.salary
 
@@ -92,11 +98,13 @@ john.salary
 #   - https://docs.python.org/3.8/library/functools.html?highlight=decorator#functools.cached_property
 from functools import lru_cache
 
+
 @lru_cache(maxsize=None)
 def fib(n):
     if n < 2:
         return n
-    return fib(n-1) + fib(n-2)
+    return fib(n - 1) + fib(n - 2)
+
 
 [fib(n) for n in range(16)]
 # [0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610]
@@ -106,8 +114,8 @@ fib.cache_info()
 
 
 # Need to have numpy and matplotlib packages installed.
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 
 # numpy examples.
 
@@ -122,14 +130,11 @@ plt.show()
 # Need to have pandas package installed.
 import pandas
 
-mydata = {
-    'cars': ["BMW", "Volvo", "Ford"],
-    'passings': [3, 7, 2]
-}
+mydata = {"cars": ["BMW", "Volvo", "Ford"], "passings": [3, 7, 2]}
 
 df = pandas.DataFrame(mydata)
-df['cars']
-df['passings']
+df["cars"]
+df["passings"]
 
 
 # Asyncio samples

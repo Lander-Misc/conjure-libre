@@ -19,11 +19,22 @@ We set `__name__` to `__repl__` which means you can alter your program entry
 point to include `__repl__` if you wish to execute your software from the REPL
 as well as the command line.
 >python
- if __name__ == "__main__" or "__repl__":
+ if __name__ in ("__main__", "__repl__"):
+
+Conjure also sets `__file__` to the path of the buffer being evaluated before
+each evaluation. Multi-line evaluations use that path as the filename passed to
+Python's `compile`, so tracebacks should point back at the evaluated buffer.
 
 Once you have tree sitter installed and configured (remember to run
 `:TSInstall python`!) you should be able to evaluate forms just like you would
 in any other Conjure supported language.
+
+By default, Conjure uses `python3` to create a REPL, which can be best managed
+using Python virtual environments. Look for how to "activate" a virtual
+environment using your Python build tool of choice. For example, running
+`eval $(poetry env activate)` before opening Neovim makes `python3` equivalent
+to `poetry run python3`, enabling Conjure to seamlessly integrate with your
+Poetry project.
 
 Check out `:ConjureSchool` if you're unsure about what evaluation operations
 you can perform.
@@ -64,7 +75,9 @@ All configuration can be set as described in |conjure-configuration|.
                                        *g:conjure#client#python#stdio#command*
 `g:conjure#client#python#stdio#command`
             Command used to start the Python REPL, you can modify this to add
-            arguments or change the command entirely.
+            arguments or change the command entirely. Tip: Start Neovim within
+            a Python virtual environment to make best use of the default
+            command.
             Default: `"python3 -iq"`
 
                                 *g:conjure#client#python#stdio#prompt_pattern*

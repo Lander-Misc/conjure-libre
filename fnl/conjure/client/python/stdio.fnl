@@ -117,15 +117,24 @@
     (and (= 1 (root:child_count))
          (M.is-expression? (root:child 0)))))
 
-(fn get-exec-str
-  [s]
-  (.. "exec(base64.b64decode('" (b64.encode s) "'))\n"))
+(fn source-file-path [opts]
+  (if (and opts.file-path (~= "" opts.file-path))
+    opts.file-path
+    "<conjure>"))
 
-(fn prep-code [s]
-  (let [python-expr (M.str-is-python-expr? s)]
+(fn get-file-str [opts]
+  (.. "__file__ = base64.b64decode('" (b64.encode (source-file-path opts)) "').decode()\n"))
+
+(fn get-exec-str [opts]
+  (.. (get-file-str opts)
+      "exec(compile(base64.b64decode('" (b64.encode opts.code) "'), __file__, 'exec'))\n"))
+
+(fn M.prep-code [opts]
+  (let [s opts.code
+        python-expr (M.str-is-python-expr? s)]
     (if python-expr
-      (.. s "\n")
-      (get-exec-str s))))
+      (.. (get-file-str opts) s "\n")
+      (get-exec-str opts))))
 
 ; If, after pressing newline, the python interpreter expects more
 ; input from you (as is the case after the first line of an if branch or for loop)
@@ -178,7 +187,7 @@
   (with-repl-or-warn
     (fn [repl]
       (repl.send
-        (prep-code opts.code)
+        (M.prep-code opts)
         (fn [msgs]
           (log-repl-output msgs)
           (when opts.on-result
@@ -258,7 +267,7 @@
                    (fn [msgs] nil)
                    nil)
                  (repl.send
-                   (prep-code M.initialise-repl-code)
+                   (M.prep-code {:code M.initialise-repl-code})
                    (fn [msgs] nil)
                    nil))))
 
