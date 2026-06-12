@@ -144,7 +144,8 @@
     :fold {:enabled false
            :lines 10
            :marker {:start "~~~%{"
-                    :end "}%~~~"}}}
+                    :end "}%~~~"}}
+    :linked_to_client_state false}
 
    :extract
    {:context_header_lines -1

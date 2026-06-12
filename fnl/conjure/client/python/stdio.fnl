@@ -18,7 +18,8 @@
     {:stdio
      {:command "python3 -iq"
       :prompt_pattern ">>> "
-      :delay_stderr_ms 10}}}})
+      :delay_stderr_ms 10
+      :auto_set_file true}}}})
 
 (when (config.get-in [:mapping :enable_defaults])
   (config.merge
@@ -123,7 +124,9 @@
     "<conjure>"))
 
 (fn get-file-str [opts]
-  (.. "__file__ = base64.b64decode('" (b64.encode (source-file-path opts)) "').decode()\n"))
+  (if (cfg [:auto_set_file])
+    (.. "__file__ = base64.b64decode('" (b64.encode (source-file-path opts)) "').decode()\n")
+    ""))
 
 (fn get-exec-str [opts]
   (.. (get-file-str opts)

@@ -88,4 +88,12 @@ All configuration can be set as described in |conjure-configuration|.
             marker as the result.
             Default: `">>> "`
 
+                               *g:conjure#client#python#stdio#auto_set_file*
+`g:conjure#client#python#stdio#auto_set_file`
+            Automatically set `__file__` to the path of the buffer being
+            evaluated before each evaluation. Disable this if you're
+            evaluating scripts rather than modules and don't want `__file__`
+            defined in your REPL environment.
+            Default: `true`
+
 vim:tw=78:sw=2:ts=2:ft=help:norl:et:listchars=
