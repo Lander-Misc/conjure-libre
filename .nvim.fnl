@@ -27,6 +27,8 @@
 ; (set vim.g.conjure#debug true)
 ; (set vim.g.conjure#client#clojure#nrepl#eval#auto_require false)
 
+; (set vim.g.conjure#log#linked_to_client_state true)
+
 (set vim.g.conjure#client#scheme#stdio#command "chicken-csi -:c")
 (set vim.g.conjure#client#scheme#stdio#prompt_pattern "\n-#;%d-> ")
 (set vim.g.conjure#client#scheme#stdio#value_prefix_pattern false)

@@ -35,7 +35,13 @@
   (str.join [(client.get :comment-prefix) "State: " (client.state-key)]))
 
 (fn log-buf-name []
-  (str.join ["conjure-log-" (vim.fn.getpid) (client.get :buf-suffix)]))
+  (str.join
+    ["conjure-log-"
+     (if (and (config.get-in [:log :linked_to_client_state])
+              (client.multiple-states?))
+       (client.state-key)
+       (vim.fn.getpid))
+     (client.get :buf-suffix)]))
 
 (fn M.log-buf? [name]
   (vim.endswith name (log-buf-name)))

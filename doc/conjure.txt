@@ -784,6 +784,17 @@ configure the ones you care about one at a time you can set:
             Enable line wrapping in the HUD and log.
             Default: `false`
 
+                              *g:conjure#log#linked_to_client_state*
+`g:conjure#log#linked_to_client_state`
+            When enabled, the log buffer name is derived from the current
+            client state key (set via |:ConjureClientState|) rather than the
+            Neovim process ID. This gives each named state its own log buffer,
+            e.g. `conjure-log-my-feature.cljc`, making it easy to switch
+            between work streams within a long-running session.
+            Falls back to the PID name when no state key has been explicitly
+            set.
+            Default: `false`
+
                                                   *g:conjure#log#fold#enabled*
 `g:conjure#log#fold#enabled`
             Enable or disable folding of results.

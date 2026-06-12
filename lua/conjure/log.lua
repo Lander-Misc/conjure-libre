@@ -22,7 +22,13 @@ local function state_key_header()
   return str.join({client.get("comment-prefix"), "State: ", client["state-key"]()})
 end
 local function log_buf_name()
-  return str.join({"conjure-log-", vim.fn.getpid(), client.get("buf-suffix")})
+  local _2_
+  if (config["get-in"]({"log", "linked_to_client_state"}) and client["multiple-states?"]()) then
+    _2_ = client["state-key"]()
+  else
+    _2_ = vim.fn.getpid()
+  end
+  return str.join({"conjure-log-", _2_, client.get("buf-suffix")})
 end
 M["log-buf?"] = function(name)
   return vim.endswith(name, log_buf_name())
@@ -51,7 +57,7 @@ end
 M["clear-close-hud-passive-timer"] = function()
   return core["update-in"](M.state, {"hud", "timer"}, timer.destroy)
 end
-local function _5_()
+local function _7_()
   if M.state.hud.id then
     pcall(vim.api.nvim_win_close, M.state.hud.id, true)
     M.state.hud.id = nil
@@ -60,7 +66,7 @@ local function _5_()
     return nil
   end
 end
-hook.define("close-hud", _5_)
+hook.define("close-hud", _7_)
 M["close-hud"] = function()
   M["clear-close-hud-passive-timer"]()
   return hook.exec("close-hud")
@@ -86,21 +92,21 @@ M["close-hud-passive"] = function()
 end
 local function break_lines(buf)
   local break_str = _break()
-  local function _11_(_10_)
-    local _n = _10_[1]
-    local s = _10_[2]
+  local function _13_(_12_)
+    local _n = _12_[1]
+    local s = _12_[2]
     return (s == break_str)
   end
-  return core.map(core.first, core.filter(_11_, core["kv-pairs"](vim.api.nvim_buf_get_lines(buf, 0, -1, false))))
+  return core.map(core.first, core.filter(_13_, core["kv-pairs"](vim.api.nvim_buf_get_lines(buf, 0, -1, false))))
 end
 local function set_win_opts_21(win)
-  local _12_
+  local _14_
   if config["get-in"]({"log", "wrap"}) then
-    _12_ = true
+    _14_ = true
   else
-    _12_ = false
+    _14_ = false
   end
-  vim.wo[win]["wrap"] = _12_
+  vim.wo[win]["wrap"] = _14_
   vim.wo[win]["foldmethod"] = "marker"
   vim.wo[win]["foldmarker"] = (config["get-in"]({"log", "fold", "marker", "start"}) .. "," .. config["get-in"]({"log", "fold", "marker", "end"}))
   vim.wo[win]["foldlevel"] = 0
@@ -112,25 +118,25 @@ end
 local function flip_anchor(anchor, n)
   local chars = {anchor:sub(1, 1), anchor:sub(2)}
   local flip = {N = "S", S = "N", E = "W", W = "E"}
-  local function _14_(_241)
+  local function _16_(_241)
     return core.get(flip, _241)
   end
-  return str.join(core.update(chars, n, _14_))
+  return str.join(core.update(chars, n, _16_))
 end
 local function pad_box(box, padding)
-  local function _15_(_241)
+  local function _17_(_241)
     return (_241 - padding.x)
   end
-  local function _16_(_241)
+  local function _18_(_241)
     return (_241 - padding.y)
   end
-  local function _17_(_241)
+  local function _19_(_241)
     return (_241 + padding.x)
   end
-  local function _18_(_241)
+  local function _20_(_241)
     return (_241 + padding.y)
   end
-  return core.update(core.update(core.update(core.update(box, "x1", _15_), "y1", _16_), "x2", _17_), "y2", _18_)
+  return core.update(core.update(core.update(core.update(box, "x1", _17_), "y1", _18_), "x2", _19_), "y2", _20_)
 end
 local function hud_window_pos(anchor, size, rec_3f)
   local north = 0
@@ -139,29 +145,29 @@ local function hud_window_pos(anchor, size, rec_3f)
   local east = editor.width()
   local padding_percent = config["get-in"]({"log", "hud", "overlap_padding"})
   local pos
-  local _19_
+  local _21_
   if ("NE" == anchor) then
-    _19_ = {row = north, col = east, box = {y1 = north, x1 = (east - size.width), y2 = (north + size.height), x2 = east}}
+    _21_ = {row = north, col = east, box = {y1 = north, x1 = (east - size.width), y2 = (north + size.height), x2 = east}}
   elseif ("SE" == anchor) then
-    _19_ = {row = south, col = east, box = {y1 = (south - size.height), x1 = (east - size.width), y2 = south, x2 = east}}
+    _21_ = {row = south, col = east, box = {y1 = (south - size.height), x1 = (east - size.width), y2 = south, x2 = east}}
   elseif ("SW" == anchor) then
-    _19_ = {row = south, col = west, box = {y1 = (south - size.height), x1 = west, y2 = south, x2 = (west + size.width)}}
+    _21_ = {row = south, col = west, box = {y1 = (south - size.height), x1 = west, y2 = south, x2 = (west + size.width)}}
   elseif ("NW" == anchor) then
-    _19_ = {row = north, col = west, box = {y1 = north, x1 = west, y2 = (north + size.height), x2 = (west + size.width)}}
+    _21_ = {row = north, col = west, box = {y1 = north, x1 = west, y2 = (north + size.height), x2 = (west + size.width)}}
   else
     vim.notify("g:conjure#log#hud#anchor must be one of: NE, SE, SW, NW", vim.log.levels.ERROR)
-    _19_ = hud_window_pos("NE", size)
+    _21_ = hud_window_pos("NE", size)
   end
-  pos = core.assoc(_19_, "anchor", anchor)
+  pos = core.assoc(_21_, "anchor", anchor)
   if (not rec_3f and in_box_3f(pad_box(pos.box, {x = editor["percent-width"](padding_percent), y = editor["percent-height"](padding_percent)}), {x = editor["cursor-left"](), y = editor["cursor-top"]()})) then
-    local function _21_()
+    local function _23_()
       if (size.width > size.height) then
         return 1
       else
         return 2
       end
     end
-    return hud_window_pos(flip_anchor(anchor, _21_()), size, true)
+    return hud_window_pos(flip_anchor(anchor, _23_()), size, true)
   else
     return pos
   end
@@ -190,7 +196,7 @@ local function handle_low_priority_spam_21(low_priority_3f)
     return nil
   end
 end
-local function _26_(opts)
+local function _28_(opts)
   local buf = upsert_buf()
   local last_break = core.last(break_lines(buf))
   local line_count = vim.api.nvim_buf_line_count(buf)
@@ -217,7 +223,7 @@ local function _26_(opts)
     return vim.api.nvim_win_set_cursor(M.state.hud.id, {line_count, 0})
   end
 end
-hook.define("display-hud", _26_)
+hook.define("display-hud", _28_)
 local function display_hud(opts)
   if (config["get-in"]({"log", "hud", "enabled"}) and not current_window_floating_3f() and (not config["get-in"]({"log", "hud", "ignore_low_priority"}) or (config["get-in"]({"log", "hud", "ignore_low_priority"}) and not core.get(opts, "low-priority?")))) then
     M["clear-close-hud-passive-timer"]()
@@ -230,14 +236,14 @@ local function win_visible_3f(win)
   return (vim.fn.tabpagenr() == core.first(vim.fn.win_id2tabwin(win)))
 end
 local function with_buf_wins(buf, f)
-  local function _31_(win)
+  local function _33_(win)
     if (buf == vim.api.nvim_win_get_buf(win)) then
       return f(win)
     else
       return nil
     end
   end
-  return core["run!"](_31_, vim.api.nvim_list_wins())
+  return core["run!"](_33_, vim.api.nvim_list_wins())
 end
 local function win_botline(win)
   return core.get(core.first(vim.fn.getwininfo(win)), "botline")
@@ -247,24 +253,24 @@ local function trim(buf)
   if (line_count > config["get-in"]({"log", "trim", "at"})) then
     local target_line_count = (line_count - config["get-in"]({"log", "trim", "to"}))
     local break_line
-    local function _33_(line)
+    local function _35_(line)
       if (line >= target_line_count) then
         return line
       else
         return nil
       end
     end
-    break_line = core.some(_33_, break_lines(buf))
+    break_line = core.some(_35_, break_lines(buf))
     if break_line then
       vim.api.nvim_buf_set_lines(buf, 0, break_line, false, {})
-      local function _35_(win)
-        local _let_36_ = vim.api.nvim_win_get_cursor(win)
-        local row = _let_36_[1]
-        local col = _let_36_[2]
+      local function _37_(win)
+        local _let_38_ = vim.api.nvim_win_get_cursor(win)
+        local row = _let_38_[1]
+        local col = _let_38_[2]
         vim.api.nvim_win_set_cursor(win, {1, 0})
         return vim.api.nvim_win_set_cursor(win, {row, col})
       end
-      return with_buf_wins(buf, _35_)
+      return with_buf_wins(buf, _37_)
     else
       return nil
     end
@@ -280,22 +286,22 @@ M["jump-to-latest"] = function()
   M["close-hud"]()
   local buf = upsert_buf()
   local last_eval_start = vim.api.nvim_buf_get_extmark_by_id(buf, M.state["jump-to-latest"].ns, M.state["jump-to-latest"].mark, {})
-  local function _39_(win)
-    local function _40_()
+  local function _41_(win)
+    local function _42_()
       return vim.api.nvim_win_set_cursor(win, last_eval_start)
     end
-    pcall(_40_)
+    pcall(_42_)
     local cmd = core.get(M["cursor-scroll-position->command"], config["get-in"]({"log", "jump_to_latest", "cursor_scroll_position"}))
     if cmd then
-      local function _41_()
+      local function _43_()
         return vim.cmd(cmd)
       end
-      return vim.api.nvim_win_call(win, _41_)
+      return vim.api.nvim_win_call(win, _43_)
     else
       return nil
     end
   end
-  return with_buf_wins(buf, _39_)
+  return with_buf_wins(buf, _41_)
 end
 M["immediate-append"] = function(lines, opts)
   local line_count = core.count(lines)
@@ -305,10 +311,10 @@ M["immediate-append"] = function(lines, opts)
     local buf = upsert_buf()
     local join_first_3f = core.get(opts, "join-first?")
     local lines0
-    local function _43_(line)
+    local function _45_(line)
       return string.gsub(tostring(line), "\n", "\226\134\181")
     end
-    lines0 = core.map(_43_, lines)
+    lines0 = core.map(_45_, lines)
     local lines1
     if (line_count <= config["get-in"]({"log", "strip_ansi_escape_sequences_line_limit"})) then
       lines1 = core.map(text["strip-ansi-escape-sequences"], lines0)
@@ -326,43 +332,43 @@ M["immediate-append"] = function(lines, opts)
     local last_fold_3f = (fold_marker_end == M["last-line"](buf))
     local lines3
     if core.get(opts, "break?") then
-      local _46_
-      if client["multiple-states?"]() then
-        _46_ = {state_key_header()}
-      else
-        _46_ = nil
-      end
-      lines3 = core.concat({_break()}, _46_, lines2)
-    elseif join_first_3f then
       local _48_
-      if last_fold_3f then
-        _48_ = {(M["last-line"](buf, -1) .. core.first(lines2)), fold_marker_end}
+      if client["multiple-states?"]() then
+        _48_ = {state_key_header()}
       else
-        _48_ = {(M["last-line"](buf) .. core.first(lines2))}
+        _48_ = nil
       end
-      lines3 = core.concat(_48_, core.rest(lines2))
+      lines3 = core.concat({_break()}, _48_, lines2)
+    elseif join_first_3f then
+      local _50_
+      if last_fold_3f then
+        _50_ = {(M["last-line"](buf, -1) .. core.first(lines2)), fold_marker_end}
+      else
+        _50_ = {(M["last-line"](buf) .. core.first(lines2))}
+      end
+      lines3 = core.concat(_50_, core.rest(lines2))
     else
       lines3 = lines2
     end
     local old_lines = vim.api.nvim_buf_line_count(buf)
     do
       local ok_3f, err
-      local function _51_()
-        local _52_
+      local function _53_()
+        local _54_
         if buffer["empty?"](buf) then
-          _52_ = 0
+          _54_ = 0
         elseif join_first_3f then
           if last_fold_3f then
-            _52_ = -3
+            _54_ = -3
           else
-            _52_ = -2
+            _54_ = -2
           end
         else
-          _52_ = -1
+          _54_ = -1
         end
-        return vim.api.nvim_buf_set_lines(buf, _52_, -1, false, lines3)
+        return vim.api.nvim_buf_set_lines(buf, _54_, -1, false, lines3)
       end
-      ok_3f, err = pcall(_51_)
+      ok_3f, err = pcall(_53_)
       if not ok_3f then
         error(("Conjure failed to append to log: " .. err .. "\n" .. "Offending lines: " .. core["pr-str"](lines3)))
       else
@@ -371,19 +377,19 @@ M["immediate-append"] = function(lines, opts)
     do
       local new_lines = vim.api.nvim_buf_line_count(buf)
       local jump_to_latest_3f = config["get-in"]({"log", "jump_to_latest", "enabled"})
-      local _56_
+      local _58_
       if join_first_3f then
-        _56_ = old_lines
+        _58_ = old_lines
       else
-        _56_ = core.inc(old_lines)
+        _58_ = core.inc(old_lines)
       end
-      vim.api.nvim_buf_set_extmark(buf, M.state["jump-to-latest"].ns, _56_, 0, {id = M.state["jump-to-latest"].mark})
-      local function _58_(win)
+      vim.api.nvim_buf_set_extmark(buf, M.state["jump-to-latest"].ns, _58_, 0, {id = M.state["jump-to-latest"].mark})
+      local function _60_(win)
         visible_scrolling_log_3f = ((win ~= M.state.hud.id) and win_visible_3f(win) and (jump_to_latest_3f or (win_botline(win) >= old_lines)))
         visible_log_3f = ((win ~= M.state.hud.id) and win_visible_3f(win))
-        local _let_59_ = vim.api.nvim_win_get_cursor(win)
-        local row = _let_59_[1]
-        local _ = _let_59_[2]
+        local _let_61_ = vim.api.nvim_win_get_cursor(win)
+        local row = _let_61_[1]
+        local _ = _let_61_[2]
         if jump_to_latest_3f then
           return M["jump-to-latest"]()
         elseif (row == old_lines) then
@@ -392,7 +398,7 @@ M["immediate-append"] = function(lines, opts)
           return nil
         end
       end
-      with_buf_wins(buf, _58_)
+      with_buf_wins(buf, _60_)
     end
     local open_when = config["get-in"]({"log", "hud", "open_when"})
     if (not core.get(opts, "suppress-hud?") and ((("last-log-line-not-visible" == open_when) and not visible_scrolling_log_3f) or (("log-win-not-visible" == open_when) and not visible_log_3f))) then
@@ -409,9 +415,9 @@ M.flush = function()
     do
       local batched_lines = {}
       local batched_opts = {["clientsuppress-hud?"] = true, ["low-priority?"] = true}
-      for _, _63_ in ipairs(buffer0) do
-        local lines = _63_[1]
-        local opts = _63_[2]
+      for _, _65_ in ipairs(buffer0) do
+        local lines = _65_[1]
+        local opts = _65_[2]
         if not core["empty?"](lines) then
           for _0, line in ipairs(lines) do
             table.insert(batched_lines, line)
@@ -454,8 +460,8 @@ M.append = function(lines, opts)
   else
   end
   do
-    local _let_71_ = client["current-client-module-name"]()
-    local filetype = _let_71_.filetype
+    local _let_73_ = client["current-client-module-name"]()
+    local filetype = _let_73_.filetype
     local buffer0 = (M.state.buffers[filetype] or {})
     table.insert(buffer0, {lines, opts})
     M.state.buffers[filetype] = buffer0
@@ -469,13 +475,13 @@ end
 local function create_win(cmd)
   M.state["last-open-cmd"] = cmd
   local buf = upsert_buf()
-  local _73_
+  local _75_
   if config["get-in"]({"log", "botright"}) then
-    _73_ = "botright"
+    _75_ = "botright"
   else
-    _73_ = ""
+    _75_ = ""
   end
-  vim.cmd(string.format("keepalt %s %s %s", _73_, cmd, buffer.resolve(log_buf_name())))
+  vim.cmd(string.format("keepalt %s %s %s", _75_, cmd, buffer.resolve(log_buf_name())))
   vim.api.nvim_win_set_cursor(0, {vim.api.nvim_buf_line_count(buf), 0})
   set_win_opts_21(0)
   return buffer.unlist(buf)
@@ -506,16 +512,16 @@ M.buf = function()
 end
 local function find_windows()
   local buf = upsert_buf()
-  local function _77_(win)
+  local function _79_(win)
     return ((M.state.hud.id ~= win) and (buf == vim.api.nvim_win_get_buf(win)))
   end
-  return core.filter(_77_, vim.api.nvim_tabpage_list_wins(0))
+  return core.filter(_79_, vim.api.nvim_tabpage_list_wins(0))
 end
 local function close(windows)
-  local function _78_(_241)
+  local function _80_(_241)
     return vim.api.nvim_win_close(_241, true)
   end
-  return core["run!"](_78_, windows)
+  return core["run!"](_80_, windows)
 end
 M["close-visible"] = function()
   M["close-hud"]()
