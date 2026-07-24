@@ -207,9 +207,11 @@
           (root-tree:root))))))
 
 (fn valid-str? [lang code]
-  (let [root-node (get-root-node-for-str lang code)]
-    (and root-node
-         (not (root-node:has_error)))))
+  (if (enabled?)
+    (let [root-node (get-root-node-for-str lang code)]
+      (and root-node
+           (not (root-node:has_error))))
+    true))
 
 {: enabled?
  : parse!
