@@ -125,9 +125,13 @@ local function get_completions_for_query(query)
   end
 end
 M["get-completions-at-cursor"] = function(ts_lang, cmpl_resource)
-  local query = get_completion_query(ts_lang, cmpl_resource)
-  if query then
-    return get_completions_for_query(query)
+  if ts["enabled?"]() then
+    local query = get_completion_query(ts_lang, cmpl_resource)
+    if query then
+      return get_completions_for_query(query)
+    else
+      return {}
+    end
   else
     return {}
   end
@@ -136,13 +140,13 @@ M["make-prefix-filter"] = function(prefix)
   local sanitized_prefix = string.gsub((prefix or ""), "%%", "%%%%")
   local prefix_pattern = ("^" .. sanitized_prefix)
   local prefix_filter
-  local function _16_(s)
+  local function _17_(s)
     return string.match(s, prefix_pattern)
   end
-  prefix_filter = _16_
-  local function _17_(list)
+  prefix_filter = _17_
+  local function _18_(list)
     return a.filter(prefix_filter, list)
   end
-  return _17_
+  return _18_
 end
 return M

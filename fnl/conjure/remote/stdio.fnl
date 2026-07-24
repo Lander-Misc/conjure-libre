@@ -2,11 +2,16 @@
 (local core (autoload :conjure.nfnl.core))
 (local str (autoload :conjure.nfnl.string))
 (local client (autoload :conjure.client))
+(local config (autoload :conjure.config))
 (local log (autoload :conjure.log))
+(local process (autoload :conjure.process))
 
 (local M (define :conjure.remote.stdio))
 (local vim _G.vim)
 (local uv vim.uv)
+
+(config.merge
+  {:stdio {:silence_missing_command false}})
 
 
 (fn parse-prompt [s pat]
@@ -45,112 +50,121 @@
                           arrives before the previous command's output on stdout.
   * opts.on-stray-output: Called with stray output that don't match up to a callback.
   * opts.on-exit: Called on exit with the code and signal."
-  (let [stdin (uv.new_pipe false)
-        stdout (uv.new_pipe false)
-        stderr (uv.new_pipe false)
-        repl {:queue []
-              :current nil}]
+  (let [{: cmd : args} (M.parse-cmd opts.cmd)]
+    (if (not (process.executable? cmd))
+      (do
+        (when (not (config.get-in [:stdio :silence_missing_command]))
+          (client.schedule
+            #(opts.on-error
+               (.. "command not found: " cmd
+                   " (is it installed and on your $PATH?)"))))
+        nil)
 
-    (fn destroy []
-      ;; https://teukka.tech/vimloop.html
-      (pcall #(stdout:read_stop))
-      (pcall #(stderr:read_stop))
-      (pcall #(stdout:close))
-      (pcall #(stderr:close))
-      (pcall #(stdin:close))
-      (when repl.handle
-        (pcall #(uv.process_kill repl.handle :sigterm))
-        (pcall #(repl.handle:close)))
-      nil)
+      (let [stdin (uv.new_pipe false)
+            stdout (uv.new_pipe false)
+            stderr (uv.new_pipe false)
+            repl {:queue []
+                  :current nil}]
 
-    (fn on-exit [code signal]
-      (destroy)
-      (client.schedule opts.on-exit code signal))
+        (fn destroy []
+          ;; https://teukka.tech/vimloop.html
+          (pcall #(stdout:read_stop))
+          (pcall #(stderr:read_stop))
+          (pcall #(stdout:close))
+          (pcall #(stderr:close))
+          (pcall #(stdin:close))
+          (when repl.handle
+            (pcall #(uv.process_kill repl.handle :sigterm))
+            (pcall #(repl.handle:close)))
+          nil)
 
-    (fn next-in-queue []
-      (let [next-msg (core.first repl.queue)]
-        (when (and next-msg (not repl.current))
-          (table.remove repl.queue 1)
-          (core.assoc repl :current next-msg)
-          (log.dbg (.. "remote.stdio.next-in-queue; sending next-msg.code:'" (core.str next-msg.code) "'"))
-          (stdin:write next-msg.code))))
+        (fn on-exit [code signal]
+          (destroy)
+          (client.schedule opts.on-exit code signal))
 
-    (fn on-message [source err chunk]
-      (log.dbg (.. "remote.stdio.on-message; from:" source ", err:'" (core.str err) "', chunk:'" (core.str chunk) "'"))
-      (if err
-        (do
-          (opts.on-error err)
-          (destroy))
-        (when chunk
-          (let [(done? result) (parse-prompt chunk opts.prompt-pattern)
-                cb (core.get-in repl [:current :cb] opts.on-stray-output)]
-            (when cb
-              (pcall
-                #(cb {source result
-                      :done? done?})))
-            (when done?
-              (core.assoc repl :current nil)
-              (next-in-queue))))))
+        (fn next-in-queue []
+          (let [next-msg (core.first repl.queue)]
+            (when (and next-msg (not repl.current))
+              (table.remove repl.queue 1)
+              (core.assoc repl :current next-msg)
+              (log.dbg (.. "remote.stdio.next-in-queue; sending next-msg.code:'" (core.str next-msg.code) "'"))
+              (stdin:write next-msg.code))))
 
-    (fn on-stdout [err chunk]
-      (on-message :out err chunk))
+        (fn on-message [source err chunk]
+          (log.dbg (.. "remote.stdio.on-message; from:" source ", err:'" (core.str err) "', chunk:'" (core.str chunk) "'"))
+          (if err
+            (do
+              (opts.on-error err)
+              (destroy))
+            (when chunk
+              (let [(done? result) (parse-prompt chunk opts.prompt-pattern)
+                    cb (core.get-in repl [:current :cb] opts.on-stray-output)]
+                (when cb
+                  (pcall
+                    #(cb {source result
+                          :done? done?})))
+                (when done?
+                  (core.assoc repl :current nil)
+                  (next-in-queue))))))
 
-    (fn on-stderr [err chunk]
-      (if opts.delay-stderr-ms
-        (vim.defer_fn #(on-message :err err chunk) opts.delay-stderr-ms)
-        (on-message :err err chunk)))
+        (fn on-stdout [err chunk]
+          (on-message :out err chunk))
 
-    (fn send [code cb opts]
-      (table.insert
-        repl.queue
-        {:code code
-         :cb (if (core.get opts :batch?)
-               (let [msgs []]
-                 (fn [msg]
-                   (table.insert msgs msg)
-                   (when msg.done?
-                     (cb msgs))))
-               cb)})
-      (next-in-queue)
-      nil)
+        (fn on-stderr [err chunk]
+          (if opts.delay-stderr-ms
+            (vim.defer_fn #(on-message :err err chunk) opts.delay-stderr-ms)
+            (on-message :err err chunk)))
 
-    (fn immediate-send [code]
-      (stdin:write code)
-      nil)
+        (fn send [code cb opts]
+          (table.insert
+            repl.queue
+            {:code code
+             :cb (if (core.get opts :batch?)
+                   (let [msgs []]
+                     (fn [msg]
+                       (table.insert msgs msg)
+                       (when msg.done?
+                         (cb msgs))))
+                   cb)})
+          (next-in-queue)
+          nil)
 
-    (fn send-signal [signal]
-      (uv.process_kill repl.handle signal)
-      nil)
+        (fn immediate-send [code]
+          (stdin:write code)
+          nil)
 
-    (let [{: cmd : args} (M.parse-cmd opts.cmd)
-          (handle pid-or-err)
-          (uv.spawn cmd {:stdio [stdin stdout stderr]
-                         :args args
-                         :env (extend-env
-                                (core.merge!
-                                  ;; Trying to disable custom readline config.
-                                  ;; Doesn't work in practice but is probably close?
-                                  ;; If you know how, please open a PR!
-                                  {:INPUTRC "/dev/null"
-                                   :TERM "dumb"}
-                                  opts.env))}
-                    (client.schedule-wrap on-exit))]
-      (if handle
-        (do
-          (stdout:read_start (client.schedule-wrap on-stdout))
-          (stderr:read_start (client.schedule-wrap on-stderr))
-          (client.schedule #(opts.on-success))
-          (core.merge!
-            repl
-            {:handle handle
-             :pid pid-or-err
-             :send send
-             :immediate-send immediate-send
-             :opts opts
-             :send-signal send-signal
-             :destroy destroy}))
-        (do
-          (client.schedule #(opts.on-error pid-or-err))
-          (destroy))))))
+        (fn send-signal [signal]
+          (uv.process_kill repl.handle signal)
+          nil)
+
+        (let [(handle pid-or-err)
+              (uv.spawn cmd {:stdio [stdin stdout stderr]
+                             :args args
+                             :env (extend-env
+                                    (core.merge!
+                                      ;; Trying to disable custom readline config.
+                                      ;; Doesn't work in practice but is probably close?
+                                      ;; If you know how, please open a PR!
+                                      {:INPUTRC "/dev/null"
+                                       :TERM "dumb"}
+                                      opts.env))}
+                        (client.schedule-wrap on-exit))]
+          (if handle
+            (do
+              (stdout:read_start (client.schedule-wrap on-stdout))
+              (stderr:read_start (client.schedule-wrap on-stderr))
+              (client.schedule #(opts.on-success))
+              (core.merge!
+                repl
+                {:handle handle
+                 :pid pid-or-err
+                 :send send
+                 :immediate-send immediate-send
+                 :opts opts
+                 :send-signal send-signal
+                 :destroy destroy}))
+            (do
+              (client.schedule #(opts.on-error pid-or-err))
+              (destroy))))))))
 
 M

@@ -1,7 +1,10 @@
 (local {: describe : it : before_each : after_each } (require :plenary.busted))
+(local {: autoload } (require :conjure.nfnl.module))
 (local ts (require :conjure.tree-sitter))
+(local config (autoload :conjure.config))
 
 (var saved-get-string-parser nil)
+(var saved-get-parser nil)
 
 (describe "conjure.tree-sitter"
   (fn []
@@ -9,10 +12,15 @@
       (fn []
         (before_each
           (fn []
-            (set saved-get-string-parser vim.treesitter.get_string_parser)))
+            (set saved-get-string-parser vim.treesitter.get_string_parser)
+            (set saved-get-parser vim.treesitter.get_parser)
+            (config.assoc-in [:extract :tree_sitter :enabled] true)
+            (tset vim.treesitter :get_parser (fn [] {}))))
         (after_each
           (fn []
-            (tset vim.treesitter :get_string_parser saved-get-string-parser)))
+            (tset vim.treesitter :get_string_parser saved-get-string-parser)
+            (tset vim.treesitter :get_parser saved-get-parser)
+            (config.assoc-in [:extract :tree_sitter :enabled] true)))
 
         (it "returns false when root node has error"
             (fn []
@@ -57,4 +65,14 @@
                       (fn [] {:parse (fn [])
                               :trees (fn [] [mock-root-tree])}))
 
-                (assert.is_true (ts.valid-str? :some-lang "(some code)")))))))))
+                (assert.is_true (ts.valid-str? :some-lang "(some code)")))))
+
+        (it "returns true when treesitter is disabled in config"
+            (fn []
+                (config.assoc-in [:extract :tree_sitter :enabled] false)
+                (assert.is_true (ts.valid-str? :some-lang "(some bad code"))))
+
+        (it "returns true when treesitter is not present"
+            (fn []
+              (tset vim.treesitter :get_parser nil)
+              (assert.is_true (ts.valid-str? :some-lang "(some bad code"))))))))
