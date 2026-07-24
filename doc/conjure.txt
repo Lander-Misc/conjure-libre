@@ -942,6 +942,16 @@ configure the ones you care about one at a time you can set:
             still set up it's mappings and commands but it shouldn't start any
             REPLs or connect to anything.
             Default: `true`
+
+                                       *g:conjure#stdio#silence_missing_command*
+`g:conjure#stdio#silence_missing_command`
+            When an stdio based client (such as the Rust or Python REPLs) is
+            configured with a command that isn't installed Conjure will warn
+            you about it. Set this to `true` to fail silently instead,
+            showing nothing when the command is missing. Only affects stdio
+            clients that start a REPL by spawning an external process.
+            Default: `false`
+
                                                              *g:conjure#debug*
 `g:conjure#debug`
             Display debug information in any client you're using.
