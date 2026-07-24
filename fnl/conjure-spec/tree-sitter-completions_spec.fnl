@@ -40,7 +40,7 @@
         (set saved-query-parse vim.treesitter.query.parse)
         (set saved-language-inspect vim.treesitter.language.inspect)
         (set saved-get-node vim.treesitter.get_node)
-        (config.assoc-in [:extract :tree_sitter :enabled ] true)))
+        (config.assoc-in [:extract :tree_sitter :enabled] true)))
 
     (after_each
       (fn []
@@ -49,7 +49,7 @@
         (tset vim.treesitter.query :parse saved-query-parse)
         (tset vim.treesitter.language :inspect saved-language-inspect)
         (tset vim.treesitter :get_node saved-get-node)
-        (config.assoc-in [:extract :tree_sitter :enabled ] true)))
+        (config.assoc-in [:extract :tree_sitter :enabled] true)))
 
     (it "returns no completions when the tree-sitter language is unavailable"
         (fn []
@@ -68,16 +68,16 @@
           (var called-treesitter-api false)
           (tset res :get-resource-contents (fn [_] "(query)"))
           (tset vim.treesitter.language :inspect
-                (fn [_]  
-                  (set called-treesitter-api true) 
+                (fn [_]
+                  (set called-treesitter-api true)
                   (error "language not found")))
-          (tset ts :parse! 
-                (fn [] 
-                  (set called-treesitter-api true) 
+          (tset ts :parse!
+                (fn []
+                  (set called-treesitter-api true)
                   (error "parse should not be called")))
           (tset vim.treesitter.query :parse
-                (fn [_ _] 
-                  (set called-treesitter-api true) 
+                (fn [_ _]
+                  (set called-treesitter-api true)
                   (error "query parse should not be called")))
           (config.assoc-in [:extract :tree_sitter :enabled] false)
 

@@ -14,13 +14,13 @@
           (fn []
             (set saved-get-string-parser vim.treesitter.get_string_parser)
             (set saved-get-parser vim.treesitter.get_parser)
-            (config.assoc-in [:extract :tree_sitter :enabled ] true)
+            (config.assoc-in [:extract :tree_sitter :enabled] true)
             (tset vim.treesitter :get_parser (fn [] {}))))
         (after_each
           (fn []
             (tset vim.treesitter :get_string_parser saved-get-string-parser)
             (tset vim.treesitter :get_parser saved-get-parser)
-            (config.assoc-in [:extract :tree_sitter :enabled ] true)))
+            (config.assoc-in [:extract :tree_sitter :enabled] true)))
 
         (it "returns false when root node has error"
             (fn []

@@ -120,11 +120,11 @@
 
   Returns:
   - deduplicated array of strings"
-  (if (ts.enabled?) 
+  (if (ts.enabled?)
     (let [query (get-completion-query ts-lang cmpl-resource)]
-    (if query
-      (get-completions-for-query query)
-      []))
+      (if query
+        (get-completions-for-query query)
+        []))
     []))
 
 (fn M.make-prefix-filter [prefix]
