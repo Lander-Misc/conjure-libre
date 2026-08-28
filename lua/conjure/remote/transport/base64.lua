@@ -1,14 +1,17 @@
 -- [nfnl] fnl/conjure/remote/transport/base64.fnl
+local _local_1_ = require("conjure.nfnl.module")
+local define = _local_1_.define
+local M = define("conjure.remote.transport.base64")
 local b = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
-local function encode(data)
-  local function _1_(x)
+M.encode = function(data)
+  local function _2_(x)
     local r, b0 = "", x:byte()
     for i = 8, 1, ( - 1) do
       r = (r .. (((((b0 % (2 ^ i)) - (b0 % (2 ^ (i - 1)))) > 0) and "1") or "0"))
     end
     return r
   end
-  local function _2_(x)
+  local function _3_(x)
     if (#x < 6) then
       return ""
     else
@@ -19,11 +22,11 @@ local function encode(data)
     end
     return b:sub((c + 1), (c + 1))
   end
-  return ((data:gsub(".", _1_) .. "0000"):gsub("%d%d%d?%d?%d?%d?", _2_) .. ({"", "==", "="})[((#data % 3) + 1)])
+  return ((data:gsub(".", _2_) .. "0000"):gsub("%d%d%d?%d?%d?%d?", _3_) .. ({"", "==", "="})[((#data % 3) + 1)])
 end
-local function decode(data)
+M.decode = function(data)
   data = string.gsub(data, ("[^" .. b .. "=]"), "")
-  local function _4_(x)
+  local function _5_(x)
     if (x == "=") then
       return ""
     else
@@ -34,7 +37,7 @@ local function decode(data)
     end
     return r
   end
-  local function _6_(x)
+  local function _7_(x)
     if (#x ~= 8) then
       return ""
     else
@@ -45,6 +48,6 @@ local function decode(data)
     end
     return string.char(c)
   end
-  return data:gsub(".", _4_):gsub("%d%d%d?%d?%d?%d?%d?%d?", _6_)
+  return data:gsub(".", _5_):gsub("%d%d%d?%d?%d?%d?%d?%d?", _7_)
 end
-return {encode = encode, decode = decode}
+return M

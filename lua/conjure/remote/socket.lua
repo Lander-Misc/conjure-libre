@@ -1,11 +1,13 @@
 -- [nfnl] fnl/conjure/remote/socket.fnl
 local _local_1_ = require("conjure.nfnl.module")
 local autoload = _local_1_.autoload
+local define = _local_1_.define
 local a = autoload("conjure.nfnl.core")
 local client = autoload("conjure.client")
 local log = autoload("conjure.log")
 local text = autoload("conjure.text")
 local uv = vim.uv
+local M = define("conjure.remote.socket")
 local function strip_unprintable(s)
   return string.gsub(text["strip-ansi-escape-sequences"](s), "[\1\2]", "")
 end
@@ -17,7 +19,7 @@ local function host__3eaddr(s)
     return nil
   end
 end
-local function start(opts)
+M.start = function(opts)
   local repl = {status = "pending", queue = {}, current = nil, buffer = ""}
   local handle = nil
   local function destroy()
@@ -134,4 +136,4 @@ local function start(opts)
   log.dbg(a.str("remote.socket: repl = ", repl))
   return a["merge!"](repl, {opts = opts, destroy = destroy, send = send})
 end
-return {start = start}
+return M

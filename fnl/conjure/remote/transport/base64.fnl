@@ -1,9 +1,13 @@
 ;; From https://stackoverflow.com/a/35303321/455137
 ;; Converted to Fennel by antifennel.
 
+(local {: define} (require :conjure.nfnl.module))
+
+(local M (define :conjure.remote.transport.base64))
+
 (local b "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/")
 
-(fn encode [data]
+(fn M.encode [data]
   (.. (: (.. (data:gsub "."
                         (fn [x]
                           (var (r b) (values "" (x:byte)))
@@ -30,7 +34,7 @@
            (b:sub (+ c 1) (+ c 1))))
       (. ["" "==" "="] (+ (% (length data) 3) 1))))
 
-(fn decode [data]
+(fn M.decode [data]
   (set-forcibly! data (string.gsub data (.. "[^" b "=]") ""))
   (: (data:gsub "."
                 (fn [x]
@@ -57,5 +61,4 @@
                      0))))
        (string.char c))))
 
-{: encode
- : decode}
+M

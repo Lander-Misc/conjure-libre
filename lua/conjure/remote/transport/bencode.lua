@@ -1,8 +1,11 @@
 -- [nfnl] fnl/conjure/remote/transport/bencode.fnl
+local _local_1_ = require("conjure.nfnl.module")
+local define = _local_1_.define
 local buffer = require("string.buffer")
 local ffi = require("ffi")
 local core = require("conjure.nfnl.core")
-local function new()
+local M = define("conjure.remote.transport.bencode")
+M.new = function()
   return {buf = buffer.new(), stack = {}}
 end
 local _5ci = string.byte("i")
@@ -12,7 +15,7 @@ local _5cd = string.byte("d")
 local _5c0 = string.byte("0")
 local _5c9 = string.byte("9")
 local _5c_ = string.byte(":")
-local function decode_all(state, chunk)
+M["decode-all"] = function(state, chunk)
   if chunk then
     state.buf:put(chunk)
   else
@@ -50,13 +53,13 @@ local function decode_all(state, chunk)
   end
   local function parse_number(_3fterm, _3finclusive)
     local start
-    local _5_
+    local _6_
     if _3finclusive then
-      _5_ = 0
+      _6_ = 0
     else
-      _5_ = 1
+      _6_ = 1
     end
-    start = (offset + _5_)
+    start = (offset + _6_)
     local pos = start
     while (check((pos + 1)) and (ptr[pos] ~= (_3fterm or _5ce))) do
       pos = (pos + 1)
@@ -100,33 +103,33 @@ local function decode_all(state, chunk)
       local original_offset = offset
       local c = ptr[(offset + 1)]
       offset = (offset + 1)
-      local _10_
+      local _11_
       if (c == _5ci) then
-        _10_ = parse_number()
+        _11_ = parse_number()
       else
-        local and_12_ = (c == c)
-        if and_12_ then
-          and_12_ = ((c >= _5c0) and (c <= _5c9))
+        local and_13_ = (c == c)
+        if and_13_ then
+          and_13_ = ((c >= _5c0) and (c <= _5c9))
         end
-        if and_12_ then
-          _10_ = parse_string()
+        if and_13_ then
+          _11_ = parse_string()
         elseif (c == _5cl) then
-          _10_ = parse_collection("list")
+          _11_ = parse_collection("list")
         elseif (c == _5cd) then
-          _10_ = parse_collection("dict")
+          _11_ = parse_collection("dict")
         elseif (c == _5ce) then
-          _10_ = parse_terminator()
+          _11_ = parse_terminator()
         else
           local _ = c
-          _10_ = error(string.format("bencode: bad char 0x%02x", c))
+          _11_ = error(string.format("bencode: bad char 0x%02x", c))
         end
       end
-      local or_20_ = _10_
-      if not or_20_ then
+      local or_21_ = _11_
+      if not or_21_ then
         offset = original_offset
-        or_20_ = nil
+        or_21_ = nil
       end
-      return or_20_
+      return or_21_
     else
       return nil
     end
@@ -155,29 +158,29 @@ end
 local function wrap(prefix, suffix, x)
   return (prefix .. x .. suffix)
 end
-local function encode(x)
-  local case_23_ = type(x)
-  if (case_23_ == "string") then
+M.encode = function(x)
+  local case_24_ = type(x)
+  if (case_24_ == "string") then
     return (#x .. ":" .. x)
-  elseif (case_23_ == "number") then
+  elseif (case_24_ == "number") then
     assert(((x % 1) == 0), ("bencode: non-integer number " .. x))
     return wrap("i", "e", x)
-  elseif (case_23_ == "table") then
+  elseif (case_24_ == "table") then
     if is_list_3f(x) then
-      return wrap("l", "e", table.concat(core.map(encode, core.vals(x))))
+      return wrap("l", "e", table.concat(core.map(M.encode, core.vals(x))))
     else
       table.sort(x)
-      local function _25_(_24_)
-        local k = _24_[1]
-        local v = _24_[2]
+      local function _26_(_25_)
+        local k = _25_[1]
+        local v = _25_[2]
         assert((type(k) == "string"), "bencode: dict key not string")
-        return (encode(k) .. encode(v))
+        return (M.encode(k) .. M.encode(v))
       end
-      return wrap("d", "e", table.concat(core["map-indexed"](_25_, x)))
+      return wrap("d", "e", table.concat(core["map-indexed"](_26_, x)))
     end
   else
-    local _ = case_23_
+    local _ = case_24_
     return error(("bencode: unsupported type " .. type(x)))
   end
 end
-return {new = new, ["decode-all"] = decode_all, encode = encode}
+return M
