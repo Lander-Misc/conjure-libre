@@ -1,10 +1,11 @@
-(local {: autoload} (require :conjure.nfnl.module))
+(local {: autoload : define} (require :conjure.nfnl.module))
 (local a (autoload :conjure.nfnl.core))
 (local client (autoload :conjure.client))
 (local log (autoload :conjure.log))
 (local text (autoload :conjure.text))
 (local uv vim.uv)
 
+(local M (define :conjure.remote.socket))
 
 (fn strip-unprintable [s]
   (-> (text.strip-ansi-escape-sequences s)
@@ -16,7 +17,7 @@
         (. info 1 :addr)
         nil)))
 
-(fn start [opts]
+(fn M.start [opts]
   "Connects to an external REPL via a UNIX domain socket (named pipe) or a TCP
   socket, and gives you hooks to send code to it and read responses back out.
   This allows you to connect Conjure to a running process, but has the same
@@ -149,4 +150,4 @@
        :destroy destroy
        :send send})))
 
-{: start}
+M

@@ -1,6 +1,8 @@
-(local {: autoload} (require :conjure.nfnl.module))
+(local {: autoload : define} (require :conjure.nfnl.module))
 (local a (autoload :conjure.nfnl.core))
 (local str (autoload :conjure.nfnl.string))
+
+(local M (define :conjure.uuid))
 
 ;; Adapted from https://gist.github.com/jrus/3197011
 
@@ -13,7 +15,7 @@
 ;     end)
 ; end
 
-(fn v4 []
+(fn M.v4 []
   (string.gsub
     "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx"
     "[xy]"
@@ -22,7 +24,7 @@
        (or (and (= $1 "x") (math.random 0 0xf))
            (math.random 8 0xb)))))
 
-(local cats-and-dogs
+(set M.cats-and-dogs
   ["Blue Lacy" "Queensland Heeler" "Rhod Ridgeback" "Retriever" "Chinese Sharpei" "Black Mouth Cur" "Catahoula" "Staffordshire" "Affenpinscher"
    "Afghan Hound" "Airedale Terrier" "Akita" "Australian Kelpie" "Alaskan Malamute" "English Bulldog" "American Bulldog" "American English Coonhound"
    "American Eskimo Dog" "American Foxhound" "American Hairless Terrier" "American Staffordshire Terrier" "American Water Spaniel" "Anatolian Shepherd Dog"
@@ -61,19 +63,17 @@
    "Siberian cat" "Singapura cat" "Snowshoe cat" "Sokoke" "Somali cat" "Sphynx cat" "Suphalak" "Thai cat" "Thai Lilac" "Tonkinese cat" "Toyger"
    "Turkish Angora" "Turkish Van" "Ukrainian Levkoy"])
 
-(fn pretty [id]
+(fn M.pretty [id]
   "Turns a UUID into something human readable. This MASSIVELY reduces the
   entropy but it should be good enough for a bunch of various UI / UX cases."
   (if (a.string? id)
     (let [n (tonumber (string.sub id 1 8) 16)]
-      (a.get cats-and-dogs (a.inc (% n (a.count cats-and-dogs)))))
+      (a.get M.cats-and-dogs (a.inc (% n (a.count M.cats-and-dogs)))))
     (str.join ["<conjure.uuid: got " (type id) " not string, this is a bug!>"])))
 
 (comment
-  (v4)
-  (pretty (v4))
+  (M.v4)
+  (M.pretty (M.v4))
 )
 
-{: v4
- : pretty
- : cats-and-dogs}
+M

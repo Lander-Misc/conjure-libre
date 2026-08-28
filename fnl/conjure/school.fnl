@@ -1,9 +1,11 @@
-(local {: autoload} (require :conjure.nfnl.module))
+(local {: autoload : define} (require :conjure.nfnl.module))
 (local core (autoload :conjure.nfnl.core))
 (local buffer (autoload :conjure.buffer))
 (local config (autoload :conjure.config))
 (local editor (autoload :conjure.editor))
 (local str (autoload :conjure.nfnl.string))
+
+(local M (define :conjure.school))
 
 (local buf-name "conjure-school.fnl")
 
@@ -33,7 +35,7 @@
     (progress current-progress)
     "You've already completed this lesson! You can (u)ndo and run it again though if you'd like."))
 
-(fn start []
+(fn M.start []
   (when (and (not= vim.g.conjure#filetype#fennel "conjure.client.fennel.aniseed")
              (not= vim.g.conjure#filetype#fennel "conjure.client.fennel.nfnl"))
     (vim.notify_once
@@ -86,7 +88,7 @@
           [(.. ";; Your <localleader> is currently mapped to \"" vim.g.maplocalleader "\"")])
         ["(school.lesson-1)"]))))
 
-(fn lesson-1 []
+(fn M.lesson-1 []
   (append-or-warn
     1
     [""
@@ -114,7 +116,7 @@
      "(comment"
         "  (school.lesson-2))"]))
 
-(fn lesson-2 []
+(fn M.lesson-2 []
   (append-or-warn
     2
     [""
@@ -126,7 +128,7 @@
         "  (print \"Hello, World!\")"
         "  (school.lesson-3))"]))
 
-(fn lesson-3 []
+(fn M.lesson-3 []
   (append-or-warn
     3
     [""
@@ -138,7 +140,7 @@
      (.. ";; We'll try that in the next lesson, place your cursor inside the form below and press " (map-str :eval_replace_form))
      "(school.lesson-4)"]))
 
-(fn lesson-4 []
+(fn M.lesson-4 []
   (append-or-warn
     4
     [""
@@ -149,10 +151,10 @@
      ";; If you use a capital letter like mF you can even open a different file and evaluate that marked form without changing buffers!"
      "(school.lesson-5)"]))
 
-(local lesson-5-message
+(set M.lesson-5-message
   "This is the contents of school.lesson-5-message!")
 
-(fn lesson-5 []
+(fn M.lesson-5 []
   (append-or-warn
     5
     [""
@@ -167,10 +169,10 @@
      ";; Try evaluating the form below using a visual selection."
      "(school.lesson-6)"]))
 
-(local lesson-6-message
+(set M.lesson-6-message
   "This is the contents of school.lesson-6-message!")
 
-(fn lesson-6 []
+(fn M.lesson-6 []
   (append-or-warn
     6
     [""
@@ -183,7 +185,7 @@
      (.. ";; Use " (map-str :eval_motion) "a( to evaluate the lesson form.")
          "(school.lesson-7)"]))
 
-(fn lesson-7 []
+(fn M.lesson-7 []
   (append-or-warn
     7
     [""
@@ -194,13 +196,4 @@
      ""
      ";; I hope you have a wonderful time in Conjure!"]))
 
-{: start
- : lesson-1
- : lesson-2
- : lesson-3
- : lesson-4
- : lesson-5
- : lesson-6
- : lesson-7
- : lesson-5-message
- : lesson-6-message}
+M

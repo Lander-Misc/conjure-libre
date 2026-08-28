@@ -1,4 +1,4 @@
-(local {: autoload} (require :conjure.nfnl.module))
+(local {: autoload : define} (require :conjure.nfnl.module))
 (local a (autoload :conjure.aniseed.core))
 (local client (autoload :conjure.client))
 (local config (autoload :conjure.config))
@@ -11,13 +11,15 @@
 (local ts (autoload :conjure.tree-sitter))
 (local view (autoload :conjure.aniseed.view))
 
-(local comment-node? ts.lisp-comment-node?)
-(fn form-node? [node]
+(local M (define :conjure.client.fennel.aniseed))
+
+(set M.comment-node? ts.lisp-comment-node?)
+(fn M.form-node? [node]
   (ts.node-surrounded-by-form-pair-chars? node [["#(" ")"]]))
 
-(local buf-suffix ".fnl")
-(local context-pattern "%(%s*module%s+(.-)[%s){]")
-(local comment-prefix "; ")
+(set M.buf-suffix ".fnl")
+(set M.context-pattern "%(%s*module%s+(.-)[%s){]")
+(set M.comment-prefix "; ")
 
 (config.merge
   {:client
@@ -53,27 +55,27 @@
 
 (local repls {})
 
-(fn reset-repl [filename]
+(fn M.reset-repl [filename]
   (let [filename (or filename (fs.localise-path (extract.file-path)))]
     (tset repls filename nil)
     (log.append [(.. "; Reset REPL for " filename)] {:break? true})))
 
-(fn reset-all-repls []
+(fn M.reset-all-repls []
   (a.run!
     (fn [filename]
       (tset repls filename nil))
     (a.keys repls))
   (log.append [(.. "; Reset all REPLs")] {:break? true}))
 
-(local default-module-name "conjure.user")
+(set M.default-module-name "conjure.user")
 
-(fn module-name [context file-path]
+(fn M.module-name [context file-path]
   (if
     context context
-    file-path (or (fs.file-path->module-name file-path) default-module-name)
-    default-module-name))
+    file-path (or (fs.file-path->module-name file-path) M.default-module-name)
+    M.default-module-name))
 
-(fn repl [opts]
+(fn M.repl [opts]
   (let [filename (a.get opts :filename)]
     (or ;; Reuse an existing REPL.
         (and (not (a.get opts :fresh?)) (a.get repls filename))
@@ -117,7 +119,7 @@
           ;; Return the new REPL!
           repl))))
 
-(fn display-result [opts]
+(fn M.display-result [opts]
   (when opts
     (let [{: ok? : results} opts
           result-str (or
@@ -137,7 +139,7 @@
       (when opts.on-result
         (opts.on-result result-str)))))
 
-(fn eval-str [opts]
+(fn M.eval-str [opts]
   ((client.wrap
      (fn []
        (let [out (anic :nu :with-out-str
@@ -146,8 +148,8 @@
                                     (not package.loaded.fennel))
                            (set package.loaded.fennel (anic :fennel :impl)))
 
-                         (let [eval! (repl {:filename opts.file-path
-                                            :moduleName (module-name opts.context opts.file-path)
+                         (let [eval! (M.repl {:filename opts.file-path
+                                            :moduleName (M.module-name opts.context opts.file-path)
                                             :useMetadata (cfg [:use_metadata])
 
                                             ;; Restart the REPL if...
@@ -166,16 +168,16 @@
                            (set opts.results results))))]
          (when (not (a.empty? out))
            (log.append (text.prefixed-lines (text.trim-last-newline out) "; (out) ")))
-         (display-result opts))))))
+         (M.display-result opts))))))
 
-(fn doc-str [opts]
+(fn M.doc-str [opts]
   (a.assoc opts :code (.. ",doc " opts.code))
-  (eval-str opts))
+  (M.eval-str opts))
 
-(fn eval-file [opts]
+(fn M.eval-file [opts]
   (set opts.code (a.slurp opts.file-path))
   (when opts.code
-    (eval-str opts)))
+    (M.eval-str opts)))
 
 (fn wrapped-test [req-lines f]
   (log.append req-lines {:break? true})
@@ -186,38 +188,38 @@
             res)
           (text.prefixed-lines "; ")))))
 
-(fn run-buf-tests []
+(fn M.run-buf-tests []
   (let [c (extract.context)]
     (when c
       (wrapped-test
         [(.. "; run-buf-tests (" c ")")]
         #(anic :test :run c)))))
 
-(fn run-all-tests []
+(fn M.run-all-tests []
   (wrapped-test ["; run-all-tests"] (ani :test :run-all)))
 
-(fn on-filetype []
+(fn M.on-filetype []
   (mapping.buf
     :FnlRunBufTests (cfg [:mapping :run_buf_tests])
-    #(run-buf-tests)
+    #(M.run-buf-tests)
     {:desc "Run loaded buffer tests"})
 
   (mapping.buf
     :FnlRunAllTests (cfg [:mapping :run_all_tests])
-    #(run-all-tests)
+    #(M.run-all-tests)
     {:desc "Run all loaded tests"})
 
   (mapping.buf
     :FnlResetREPL (cfg [:mapping :reset_repl])
-    #(reset-repl)
+    #(M.reset-repl)
     {:desc "Reset the current REPL state"})
 
   (mapping.buf
     :FnlResetAllREPLs (cfg [:mapping :reset_all_repls])
-    #(reset-all-repls)
+    #(M.reset-all-repls)
     {:desc "Reset all REPL states"}))
 
-(fn value->completions [x]
+(fn M.value->completions [x]
   (when (= :table (type x))
     (->> (if (. x :aniseed/autoload-enabled?)
            (do
@@ -235,16 +237,16 @@
               :menu nil
               :info nil})))))
 
-(fn completions [opts]
+(fn M.completions [opts]
   (let [code (when (not (str.blank? opts.prefix))
                (let [prefix (string.gsub opts.prefix ".$" "")]
                  (.. "((. (require :conjure.client.fennel.aniseed) :value->completions) " prefix ")")))
-        mods (value->completions package.loaded)
+        mods (M.value->completions package.loaded)
         locals (let [(ok? m) (pcall #(require opts.context))]
                  (if ok?
                    (a.concat
-                     (value->completions m)
-                     (value->completions (a.get m :aniseed/locals))
+                     (M.value->completions m)
+                     (M.value->completions (a.get m :aniseed/locals))
                      mods)
                    mods))
         result-fn
@@ -263,7 +265,7 @@
         (when code
           (pcall
             (fn []
-              (eval-str
+              (M.eval-str
                 {:file-path opts.file-path
                  :context opts.context
                  :code code
@@ -273,22 +275,4 @@
     (when (not ok?)
       (opts.cb locals))))
 
-{: buf-suffix
- : comment-node?
- : comment-prefix
- : completions
- : context-pattern
- : default-module-name
- : display-result
- : doc-str
- : eval-file
- : eval-str
- : form-node?
- : module-name
- : on-filetype
- : repl
- : reset-all-repls
- : reset-repl
- : run-all-tests
- : run-buf-tests
- : value->completions}
+M

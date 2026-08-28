@@ -1,9 +1,12 @@
 (import-macros {: if-let : when-let} :conjure.nfnl.macros)
+(local {: define} (require :conjure.nfnl.module))
 (local buffer (require :string.buffer))
 (local ffi (require :ffi))
 (local core (require :conjure.nfnl.core))
 
-(fn new [] {:buf (buffer.new) :stack []})
+(local M (define :conjure.remote.transport.bencode))
+
+(fn M.new [] {:buf (buffer.new) :stack []})
 
 (local \i (string.byte :i))
 (local \e (string.byte :e))
@@ -13,7 +16,7 @@
 (local \9 (string.byte :9))
 (local \_ (string.byte ":"))
 
-(fn decode-all [state chunk]
+(fn M.decode-all [state chunk]
   (when chunk (state.buf:put chunk))
   (let [vals []
         (ptr blen) (state.buf:ref)]
@@ -115,23 +118,23 @@
 (fn wrap [prefix suffix x]
   (.. prefix x suffix))
 
-(fn encode [x]
+(fn M.encode [x]
   (case (type x)
     :string (.. (length x) ":" x)
     :number (do
               (assert (= (% x 1) 0) (.. "bencode: non-integer number " x))
               (->> x (wrap :i :e)))
     :table (if (is-list? x)
-               (->> (core.vals x) (core.map encode) (table.concat) (wrap :l :e))
+               (->> (core.vals x) (core.map M.encode) (table.concat) (wrap :l :e))
                (do
                  (table.sort x)
                  (->> x
                       (core.map-indexed (fn [[k v]]
                                           (assert (= (type k) :string)
                                                   "bencode: dict key not string")
-                                          (.. (encode k) (encode v))))
+                                          (.. (M.encode k) (M.encode v))))
                       (table.concat)
                       (wrap :d :e))))
     _ (error (.. "bencode: unsupported type " (type x)))))
 
-{: new : decode-all : encode}
+M

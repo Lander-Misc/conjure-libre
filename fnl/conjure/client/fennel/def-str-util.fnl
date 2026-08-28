@@ -1,4 +1,4 @@
-(local {: autoload} (require :conjure.nfnl.module))
+(local {: autoload : define} (require :conjure.nfnl.module))
 (local core (autoload :conjure.nfnl.core))
 (local conjure-ts (autoload :conjure.tree-sitter))
 (local vim-ts (autoload :vim.treesitter))
@@ -6,22 +6,24 @@
 (local notify (autoload :conjure.nfnl.notify))
 (local res (autoload :conjure.resources))
 
+(local M (define :conjure.client.fennel.def-str-util))
+
 ;;TSQuery that matches `local, fn, M.fn`
-(local def-local-query (vim-ts.query.parse
+(set M.def-local-query (vim-ts.query.parse
                          :fennel
                          (res.get-resource-contents "queries/fennel/local-def.scm")))
 
 ;;TSQuery that matches `local, fn, M.(fn) `
-(local def-ext-query (vim-ts.query.parse
+(set M.def-ext-query (vim-ts.query.parse
                        :fennel
                        (res.get-resource-contents "queries/fennel/ext-def.scm")))
 
 ;;TSQuery that matches the module path imported by `require, autoload`
-(local path-query (vim-ts.query.parse
+(set M.path-query (vim-ts.query.parse
                     :fennel
                     (res.get-resource-contents "queries/fennel/import-path.scm")))
 
-(fn get-current-root [bufnr lang]
+(fn M.get-current-root [bufnr lang]
   "Return the root-node of bufnr or current buffer"
   (let [bufnr (or bufnr 0)
         lang (or lang :fennel)
@@ -29,7 +31,7 @@
         tree (. (parser:parse) 1)]
     (tree:root)))
 
-(fn search-targets [query root-node bufnr last first]
+(fn M.search-targets [query root-node bufnr last first]
   "Based on the TS:Query, root-node, bufnr, list all the possible search targets"
   ;; Return data like 
   ;; [{:content "conjure-ts"
@@ -42,11 +44,11 @@
     (icollect [id node (query:iter_captures root-node bufnr first last)]
       (conjure-ts.node->table node))))
 
-(comment (search-targets def-local-query (get-current-root) 0 20))
+(comment (M.search-targets M.def-local-query (M.get-current-root) 0 20))
 
 (fn search-in-buffer [code-text last-row bufnr]
   "Search defs inside one buffer"
-  (let [curr-targets (search-targets def-local-query (get-current-root bufnr) bufnr
+  (let [curr-targets (M.search-targets M.def-local-query (M.get-current-root bufnr) bufnr
                                      last-row)
         results (core.filter (fn [node-t]
                                (= code-text node-t.content))
@@ -70,7 +72,7 @@
 
 (fn search-in-ext-buffer [code-text last-row bufnr]
   "Search defs inside ext buffer (not current buffer)"
-  (let [curr-targets (search-ext-targets def-ext-query (get-current-root bufnr)
+  (let [curr-targets (search-ext-targets M.def-ext-query (M.get-current-root bufnr)
                                          bufnr last-row)
         results (core.filter (fn [node-t]
                                (= code-text node-t.content))
@@ -88,14 +90,14 @@
   "Try to resolve a lua module via package.path"
   (package.searchpath (.. :lua. modname) package.path))
 
-(fn resolve-fnl-module-path [modname]
+(fn M.resolve-fnl-module-path [modname]
   "Try to resolve a fnl module via fennel.path"
   (package.searchpath modname (. (config.default) :fennel-path)))
 
-(fn imported-modules [resolve last-row first-row]
+(fn M.imported-modules [resolve last-row first-row]
   "Return a list of resolved file paths for all require/autoload modules in current buffer."
-  (let [root (get-current-root) ;; find out all the import module symbol
-        raw-mods (icollect [_ node-t (ipairs (search-targets path-query root 0
+  (let [root (M.get-current-root) ;; find out all the import module symbol
+        raw-mods (icollect [_ node-t (ipairs (M.search-targets M.path-query root 0
                                                              last-row first-row))]
                    (rest-str node-t.content))]
     (notify.debug (.. "raw-mods: " (core.pr-str raw-mods)))
@@ -103,10 +105,10 @@
     (icollect [_ m (ipairs raw-mods)]
       (resolve m))))
 
-(comment (icollect [id node_t (ipairs (search-targets path-query
-                                                      (get-current-root) 0 30))]
+(comment (icollect [id node_t (ipairs (M.search-targets M.path-query
+                                                      (M.get-current-root) 0 30))]
            (rest-str node_t.content))
-  (imported-modules resolve-fnl-module-path -1))
+  (M.imported-modules M.resolve-fnl-module-path -1))
 
 (fn search-in-ext-file [code-text file-path]
   "Open file-path buffer, search for code-text, and jump if found."
@@ -130,7 +132,7 @@
          :/Users/laurencechen/.local/share/nvim/plugged/nfnl/fnl/nfnl/notify.fnl)
   (local bufnr (vim.fn.bufadd f))
   (vim.fn.bufload bufnr)
-  (search-ext-targets def-local-query (get-current-root bufnr :fennel) bufnr)
+  (search-ext-targets M.def-local-query (M.get-current-root bufnr :fennel) bufnr)
   (search-in-ext-buffer :debug -1 bufnr)
   (search-in-ext-file :debug f))
 
@@ -167,14 +169,14 @@
         (when (not (core.some core.identity results))
           {:result "definition not found"})))
 
-(fn search-and-jump [code-text last-row]
+(fn M.search-and-jump [code-text last-row]
   "Try jump in local file and fennel modules"
   (notify.debug (.. "code-text: " code-text))
   (let [results (search-in-buffer code-text last-row 0)
         module-text (module-name code-text)
         module-results (search-in-buffer module-text last-row 0) 
         fn-text (fn-name code-text)
-        fnl-imports (imported-modules resolve-fnl-module-path last-row)]
+        fnl-imports (M.imported-modules M.resolve-fnl-module-path last-row)]
     (if (> (length results) 0) ;; local jump
         (do
           (let [node (core.last results)]
@@ -186,7 +188,7 @@
           (notify.debug (core.str module-results))
           (let [target (core.first module-results)
                 end-row  (core.get-in target [:range :end 1]) 
-                fnl-imports (imported-modules resolve-fnl-module-path end-row (- end-row 1))]
+                fnl-imports (M.imported-modules M.resolve-fnl-module-path end-row (- end-row 1))]
             (cross-jump fn-text fnl-imports)))
         (> (length fnl-imports) 0) ;; cross fnl module jump
         (do 
@@ -196,10 +198,9 @@
         )))
 
 (comment ;;
-  (search-and-jump :search-and-jump 39)
-  (search-and-jump :search-and-jump 49)
+  (M.search-and-jump :search-and-jump 39)
+  (M.search-and-jump :search-and-jump 49)
   ;; 
   )
 
-{: search-and-jump : search-targets : get-current-root : def-local-query : def-ext-query
- : path-query : imported-modules : resolve-fnl-module-path}
+M

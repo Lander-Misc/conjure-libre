@@ -1,6 +1,7 @@
 -- [nfnl] fnl/conjure/client/fennel/aniseed.fnl
 local _local_1_ = require("conjure.nfnl.module")
 local autoload = _local_1_.autoload
+local define = _local_1_.define
 local a = autoload("conjure.aniseed.core")
 local client = autoload("conjure.client")
 local config = autoload("conjure.config")
@@ -12,13 +13,14 @@ local str = autoload("conjure.aniseed.string")
 local text = autoload("conjure.text")
 local ts = autoload("conjure.tree-sitter")
 local view = autoload("conjure.aniseed.view")
-local comment_node_3f = ts["lisp-comment-node?"]
-local function form_node_3f(node)
+local M = define("conjure.client.fennel.aniseed")
+M["comment-node?"] = ts["lisp-comment-node?"]
+M["form-node?"] = function(node)
   return ts["node-surrounded-by-form-pair-chars?"](node, {{"#(", ")"}})
 end
-local buf_suffix = ".fnl"
-local context_pattern = "%(%s*module%s+(.-)[%s){]"
-local comment_prefix = "; "
+M["buf-suffix"] = ".fnl"
+M["context-pattern"] = "%(%s*module%s+(.-)[%s){]"
+M["comment-prefix"] = "; "
 config.merge({client = {fennel = {aniseed = {aniseed_module_prefix = "conjure.aniseed.", use_metadata = true}}}})
 if config["get-in"]({"mapping", "enable_defaults"}) then
   config.merge({client = {fennel = {aniseed = {mapping = {run_buf_tests = "tt", run_all_tests = "ta", reset_repl = "rr", reset_all_repls = "ra"}}}}})
@@ -39,12 +41,12 @@ local function anic(mod, f_name, ...)
   return ani(mod, f_name)(...)
 end
 local repls = {}
-local function reset_repl(filename)
+M["reset-repl"] = function(filename)
   local filename0 = (filename or fs["localise-path"](extract["file-path"]()))
   repls[filename0] = nil
   return log.append({("; Reset REPL for " .. filename0)}, {["break?"] = true})
 end
-local function reset_all_repls()
+M["reset-all-repls"] = function()
   local function _4_(filename)
     repls[filename] = nil
     return nil
@@ -52,17 +54,17 @@ local function reset_all_repls()
   a["run!"](_4_, a.keys(repls))
   return log.append({"; Reset all REPLs"}, {["break?"] = true})
 end
-local default_module_name = "conjure.user"
-local function module_name(context, file_path)
+M["default-module-name"] = "conjure.user"
+M["module-name"] = function(context, file_path)
   if context then
     return context
   elseif file_path then
-    return (fs["file-path->module-name"](file_path) or default_module_name)
+    return (fs["file-path->module-name"](file_path) or M["default-module-name"])
   else
-    return default_module_name
+    return M["default-module-name"]
   end
 end
-local function repl(opts)
+M.repl = function(opts)
   local filename = a.get(opts, "filename")
   local or_6_ = (not a.get(opts, "fresh?") and a.get(repls, filename))
   if not or_6_ then
@@ -76,7 +78,7 @@ local function repl(opts)
     opts["error-handler"] = _8_
     _ = nil
     local eval_21 = anic("eval", "repl", opts)
-    local repl0
+    local repl
     local function _9_(code)
       ret["ok?"] = nil
       ret.results = nil
@@ -88,14 +90,14 @@ local function repl(opts)
       end
       return ret
     end
-    repl0 = _9_
-    repl0(("(module " .. a.get(opts, "moduleName") .. ")"))
-    repls[filename] = repl0
-    or_6_ = repl0
+    repl = _9_
+    repl(("(module " .. a.get(opts, "moduleName") .. ")"))
+    repls[filename] = repl
+    or_6_ = repl
   end
   return or_6_
 end
-local function display_result(opts)
+M["display-result"] = function(opts)
   if opts then
     local ok_3f = opts["ok?"]
     local results = opts.results
@@ -139,7 +141,7 @@ local function display_result(opts)
     return nil
   end
 end
-local function eval_str(opts)
+M["eval-str"] = function(opts)
   local function _20_()
     local out
     local function _21_()
@@ -147,7 +149,7 @@ local function eval_str(opts)
         package.loaded.fennel = anic("fennel", "impl")
       else
       end
-      local eval_21 = repl({filename = opts["file-path"], moduleName = module_name(opts.context, opts["file-path"]), useMetadata = cfg({"use_metadata"}), ["fresh?"] = (("file" == opts.origin) or ("buf" == opts.origin) or text["starts-with"](opts.code, ("(module " .. (opts.context or ""))))})
+      local eval_21 = M.repl({filename = opts["file-path"], moduleName = M["module-name"](opts.context, opts["file-path"]), useMetadata = cfg({"use_metadata"}), ["fresh?"] = (("file" == opts.origin) or ("buf" == opts.origin) or text["starts-with"](opts.code, ("(module " .. (opts.context or ""))))})
       local _let_23_ = eval_21((opts.code .. "\n"))
       local ok_3f = _let_23_["ok?"]
       local results = _let_23_.results
@@ -164,18 +166,18 @@ local function eval_str(opts)
       log.append(text["prefixed-lines"](text["trim-last-newline"](out), "; (out) "))
     else
     end
-    return display_result(opts)
+    return M["display-result"](opts)
   end
   return client.wrap(_20_)()
 end
-local function doc_str(opts)
+M["doc-str"] = function(opts)
   a.assoc(opts, "code", (",doc " .. opts.code))
-  return eval_str(opts)
+  return M["eval-str"](opts)
 end
-local function eval_file(opts)
+M["eval-file"] = function(opts)
   opts.code = a.slurp(opts["file-path"])
   if opts.code then
-    return eval_str(opts)
+    return M["eval-str"](opts)
   else
     return nil
   end
@@ -191,7 +193,7 @@ local function wrapped_test(req_lines, f)
   end
   return log.append(text["prefixed-lines"](_27_, "; "))
 end
-local function run_buf_tests()
+M["run-buf-tests"] = function()
   local c = extract.context()
   if c then
     local function _29_()
@@ -202,28 +204,28 @@ local function run_buf_tests()
     return nil
   end
 end
-local function run_all_tests()
+M["run-all-tests"] = function()
   return wrapped_test({"; run-all-tests"}, ani("test", "run-all"))
 end
-local function on_filetype()
+M["on-filetype"] = function()
   local function _31_()
-    return run_buf_tests()
+    return M["run-buf-tests"]()
   end
   mapping.buf("FnlRunBufTests", cfg({"mapping", "run_buf_tests"}), _31_, {desc = "Run loaded buffer tests"})
   local function _32_()
-    return run_all_tests()
+    return M["run-all-tests"]()
   end
   mapping.buf("FnlRunAllTests", cfg({"mapping", "run_all_tests"}), _32_, {desc = "Run all loaded tests"})
   local function _33_()
-    return reset_repl()
+    return M["reset-repl"]()
   end
   mapping.buf("FnlResetREPL", cfg({"mapping", "reset_repl"}), _33_, {desc = "Reset the current REPL state"})
   local function _34_()
-    return reset_all_repls()
+    return M["reset-all-repls"]()
   end
   return mapping.buf("FnlResetAllREPLs", cfg({"mapping", "reset_all_repls"}), _34_, {desc = "Reset all REPL states"})
 end
-local function value__3ecompletions(x)
+M["value->completions"] = function(x)
   if ("table" == type(x)) then
     local function _36_(_35_)
       local k = _35_[1]
@@ -248,7 +250,7 @@ local function value__3ecompletions(x)
     return nil
   end
 end
-local function completions(opts)
+M.completions = function(opts)
   local code
   if not str["blank?"](opts.prefix) then
     local prefix = string.gsub(opts.prefix, ".$", "")
@@ -256,7 +258,7 @@ local function completions(opts)
   else
     code = nil
   end
-  local mods = value__3ecompletions(package.loaded)
+  local mods = M["value->completions"](package.loaded)
   local locals
   do
     local ok_3f, m
@@ -265,7 +267,7 @@ local function completions(opts)
     end
     ok_3f, m = pcall(_42_)
     if ok_3f then
-      locals = a.concat(value__3ecompletions(m), value__3ecompletions(a.get(m, "aniseed/locals")), mods)
+      locals = a.concat(M["value->completions"](m), M["value->completions"](a.get(m, "aniseed/locals")), mods)
     else
       locals = mods
     end
@@ -292,7 +294,7 @@ local function completions(opts)
   local ok_3f, err_or_res
   if code then
     local function _48_()
-      return eval_str({["file-path"] = opts["file-path"], context = opts.context, code = code, ["passive?"] = true, ["on-result-raw"] = result_fn})
+      return M["eval-str"]({["file-path"] = opts["file-path"], context = opts.context, code = code, ["passive?"] = true, ["on-result-raw"] = result_fn})
     end
     ok_3f, err_or_res = pcall(_48_)
   else
@@ -304,4 +306,4 @@ local function completions(opts)
     return nil
   end
 end
-return {["buf-suffix"] = buf_suffix, ["comment-node?"] = comment_node_3f, ["comment-prefix"] = comment_prefix, completions = completions, ["context-pattern"] = context_pattern, ["default-module-name"] = default_module_name, ["display-result"] = display_result, ["doc-str"] = doc_str, ["eval-file"] = eval_file, ["eval-str"] = eval_str, ["form-node?"] = form_node_3f, ["module-name"] = module_name, ["on-filetype"] = on_filetype, repl = repl, ["reset-all-repls"] = reset_all_repls, ["reset-repl"] = reset_repl, ["run-all-tests"] = run_all_tests, ["run-buf-tests"] = run_buf_tests, ["value->completions"] = value__3ecompletions}
+return M
