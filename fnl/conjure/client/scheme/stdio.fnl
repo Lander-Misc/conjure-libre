@@ -12,13 +12,15 @@
 
 (local M (define :conjure.client.scheme.stdio))
 
+;; Match "]=> " or "error> "; the level number can arrive in an earlier read.
+(local default-prompt-pattern "[%]e][=r]r?o?r?> ")
+
 (config.merge
   {:client
    {:scheme
     {:stdio
      {:command "mit-scheme"
-      ;; Match "]=> " or "error> "
-      :prompt_pattern "[%]e][=r]r?o?r?> "
+      :prompt_pattern default-prompt-pattern
       :value_prefix_pattern "^;Value: "
       :enable_completions true}}}})
 
@@ -53,11 +55,20 @@
           (core.map #(or (core.get $1 :out) (core.get $1 :err)))
           (str.join ""))})
 
+(fn default-prompt? []
+  (= default-prompt-pattern (cfg [:prompt_pattern])))
+
+(fn strip-default-prompt [out]
+  ;; Custom patterns may be anchored to individual reads, so the transport strips them.
+  (if (default-prompt?)
+    (string.gsub out (.. "%s*%d* ?" default-prompt-pattern) "")
+    out))
+
 (fn M.format-msg [msg]
   (->> (-> msg
            (core.get :out)
+           (strip-default-prompt)
            (string.gsub "^%s*" "")
-           (string.gsub "%s+%d+%s*$" "")
            (str.split "\n"))
        (core.map
          (fn [line]
@@ -112,6 +123,7 @@
       (state) :repl
       (stdio.start
         {:prompt-pattern (cfg [:prompt_pattern])
+         :preserve-prompt? (default-prompt?)
          :cmd (cfg [:command])
 
          :on-success

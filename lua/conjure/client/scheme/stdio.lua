@@ -13,7 +13,8 @@ local ts = autoload("conjure.tree-sitter")
 local cmpl = autoload("conjure.client.scheme.completions")
 local vim = _G.vim
 local M = define("conjure.client.scheme.stdio")
-config.merge({client = {scheme = {stdio = {command = "mit-scheme", prompt_pattern = "[%]e][=r]r?o?r?> ", value_prefix_pattern = "^;Value: ", enable_completions = true}}}})
+local default_prompt_pattern = "[%]e][=r]r?o?r?> "
+config.merge({client = {scheme = {stdio = {command = "mit-scheme", prompt_pattern = default_prompt_pattern, value_prefix_pattern = "^;Value: ", enable_completions = true}}}})
 if config["get-in"]({"mapping", "enable_defaults"}) then
   config.merge({client = {scheme = {stdio = {mapping = {start = "cs", stop = "cS", interrupt = "ei"}}}}})
 else
@@ -47,11 +48,21 @@ M.unbatch = function(msgs)
   end
   return {out = str.join("", core.map(_5_, msgs))}
 end
+local function default_prompt_3f()
+  return (default_prompt_pattern == cfg({"prompt_pattern"}))
+end
+local function strip_default_prompt(out)
+  if default_prompt_3f() then
+    return string.gsub(out, ("%s*%d* ?" .. default_prompt_pattern), "")
+  else
+    return out
+  end
+end
 M["format-msg"] = function(msg)
-  local function _6_(_241)
+  local function _7_(_241)
     return not str["blank?"](_241)
   end
-  local function _7_(line)
+  local function _8_(line)
     if not cfg({"value_prefix_pattern"}) then
       return line
     elseif string.match(line, cfg({"value_prefix_pattern"})) then
@@ -60,22 +71,22 @@ M["format-msg"] = function(msg)
       return (M["comment-prefix"] .. "(out) " .. line)
     end
   end
-  return core.filter(_6_, core.map(_7_, str.split(string.gsub(string.gsub(core.get(msg, "out"), "^%s*", ""), "%s+%d+%s*$", ""), "\n")))
+  return core.filter(_7_, core.map(_8_, str.split(string.gsub(strip_default_prompt(core.get(msg, "out")), "^%s*", ""), "\n")))
 end
 M["eval-str"] = function(opts)
-  local function _9_(repl)
+  local function _10_(repl)
     if M["valid-str?"](opts.code) then
-      local function _10_(msgs)
+      local function _11_(msgs)
         local msgs0 = M["format-msg"](M.unbatch(msgs))
         opts["on-result"](core.last(msgs0))
         return log.append(msgs0)
       end
-      return repl.send((opts.code .. "\n"), _10_, {["batch?"] = true})
+      return repl.send((opts.code .. "\n"), _11_, {["batch?"] = true})
     else
       return log.append({(M["comment-prefix"] .. "eval error: could not parse form")})
     end
   end
-  return with_repl_or_warn(_9_)
+  return with_repl_or_warn(_10_)
 end
 M["eval-file"] = function(opts)
   return M["eval-str"](core.assoc(opts, "code", ("(load \"" .. opts["file-path"] .. "\")")))
@@ -97,17 +108,17 @@ M.start = function()
   if state("repl") then
     return log.append({(M["comment-prefix"] .. "Can't start, REPL is already running."), (M["comment-prefix"] .. "Stop the REPL with " .. config["get-in"]({"mapping", "prefix"}) .. cfg({"mapping", "stop"}))}, {["break?"] = true})
   else
-    local function _13_()
+    local function _14_()
       if completions_enabled_3f() then
         cmpl["get-completions"]()
       else
       end
       return display_repl_status("started")
     end
-    local function _15_(err)
+    local function _16_(err)
       return display_repl_status(err)
     end
-    local function _16_(code, signal)
+    local function _17_(code, signal)
       if (("number" == type(code)) and (code > 0)) then
         log.append({(M["comment-prefix"] .. "process exited with code " .. code)})
       else
@@ -118,45 +129,45 @@ M.start = function()
       end
       return M.stop()
     end
-    local function _19_(msg)
+    local function _20_(msg)
       return log.append(M["format-msg"](msg))
     end
-    return core.assoc(state(), "repl", stdio.start({["prompt-pattern"] = cfg({"prompt_pattern"}), cmd = cfg({"command"}), ["on-success"] = _13_, ["on-error"] = _15_, ["on-exit"] = _16_, ["on-stray-output"] = _19_}))
+    return core.assoc(state(), "repl", stdio.start({["prompt-pattern"] = cfg({"prompt_pattern"}), ["preserve-prompt?"] = default_prompt_3f(), cmd = cfg({"command"}), ["on-success"] = _14_, ["on-error"] = _16_, ["on-exit"] = _17_, ["on-stray-output"] = _20_}))
   end
 end
 M.interrupt = function()
-  local function _21_(repl)
+  local function _22_(repl)
     log.append({(M["comment-prefix"] .. " Sending interrupt signal.")}, {["break?"] = true})
     return repl["send-signal"]("sigint")
   end
-  return with_repl_or_warn(_21_)
+  return with_repl_or_warn(_22_)
 end
 M["on-load"] = function()
   return M.start()
 end
 M["on-filetype"] = function()
-  local function _23_(_22_)
-    local args = _22_.args
-    local function _24_(repl)
+  local function _24_(_23_)
+    local args = _23_.args
+    local function _25_(repl)
       log.append({(M["comment-prefix"] .. "Sending input to REPL: " .. args)}, {["break?"] = true})
       return repl["immediate-send"]((args .. "\n"))
     end
-    with_repl_or_warn(_24_)
+    with_repl_or_warn(_25_)
     return nil
   end
-  vim.api.nvim_create_user_command("ConjureSchemeInput", _23_, {nargs = 1})
-  local function _25_()
+  vim.api.nvim_create_user_command("ConjureSchemeInput", _24_, {nargs = 1})
+  local function _26_()
     return M.start()
   end
-  mapping.buf("SchemeStart", cfg({"mapping", "start"}), _25_, {desc = "Start the REPL"})
-  local function _26_()
+  mapping.buf("SchemeStart", cfg({"mapping", "start"}), _26_, {desc = "Start the REPL"})
+  local function _27_()
     return M.stop()
   end
-  mapping.buf("SchemeStop", cfg({"mapping", "stop"}), _26_, {desc = "Stop the REPL"})
-  local function _27_()
+  mapping.buf("SchemeStop", cfg({"mapping", "stop"}), _27_, {desc = "Stop the REPL"})
+  local function _28_()
     return M.interrupt()
   end
-  return mapping.buf("SchemeInterrupt", cfg({"mapping", "interrupt"}), _27_, {desc = "Interrupt the REPL"})
+  return mapping.buf("SchemeInterrupt", cfg({"mapping", "interrupt"}), _28_, {desc = "Interrupt the REPL"})
 end
 M["on-exit"] = function()
   return M.stop()
