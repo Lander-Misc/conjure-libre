@@ -42,6 +42,7 @@
   responses back out. Tying an input to a result is near enough impossible
   through this stdio medium, so it's a best effort.
   * opts.prompt-pattern: Identify result boundaries such as '> '.
+  * opts.preserve-prompt?: Keep prompts in responses for clients that strip them after batching.
   * opts.cmd: Command to run to start the REPL.
   * opts.args: Arguments to pass to the REPL.
   * opts.on-error: Called with an error string when we receive a true error from the process.
@@ -101,7 +102,7 @@
                     cb (core.get-in repl [:current :cb] opts.on-stray-output)]
                 (when cb
                   (pcall
-                    #(cb {source result
+                    #(cb {source (if opts.preserve-prompt? chunk result)
                           :done? done?})))
                 (when done?
                   (core.assoc repl :current nil)

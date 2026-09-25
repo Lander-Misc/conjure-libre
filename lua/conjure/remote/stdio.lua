@@ -114,7 +114,13 @@ M.start = function(opts)
           local cb = core["get-in"](repl, {"current", "cb"}, opts["on-stray-output"])
           if cb then
             local function _18_()
-              return cb({[source] = result, ["done?"] = done_3f})
+              local _19_
+              if opts["preserve-prompt?"] then
+                _19_ = chunk
+              else
+                _19_ = result
+              end
+              return cb({[source] = _19_, ["done?"] = done_3f})
             end
             pcall(_18_)
           else
@@ -135,19 +141,19 @@ M.start = function(opts)
     end
     local function on_stderr(err, chunk)
       if opts["delay-stderr-ms"] then
-        local function _23_()
+        local function _25_()
           return on_message("err", err, chunk)
         end
-        return vim.defer_fn(_23_, opts["delay-stderr-ms"])
+        return vim.defer_fn(_25_, opts["delay-stderr-ms"])
       else
         return on_message("err", err, chunk)
       end
     end
     local function send(code, cb, opts0)
-      local _25_
+      local _27_
       if core.get(opts0, "batch?") then
         local msgs = {}
-        local function _27_(msg)
+        local function _29_(msg)
           table.insert(msgs, msg)
           if msg["done?"] then
             return cb(msgs)
@@ -155,11 +161,11 @@ M.start = function(opts)
             return nil
           end
         end
-        _25_ = _27_
+        _27_ = _29_
       else
-        _25_ = cb
+        _27_ = cb
       end
-      table.insert(repl.queue, {code = code, cb = _25_})
+      table.insert(repl.queue, {code = code, cb = _27_})
       next_in_queue()
       return nil
     end
@@ -175,16 +181,16 @@ M.start = function(opts)
     if handle then
       stdout:read_start(client["schedule-wrap"](on_stdout))
       stderr:read_start(client["schedule-wrap"](on_stderr))
-      local function _30_()
+      local function _32_()
         return opts["on-success"]()
       end
-      client.schedule(_30_)
+      client.schedule(_32_)
       return core["merge!"](repl, {handle = handle, pid = pid_or_err, send = send, ["immediate-send"] = immediate_send, opts = opts, ["send-signal"] = send_signal, destroy = destroy})
     else
-      local function _31_()
+      local function _33_()
         return opts["on-error"](pid_or_err)
       end
-      client.schedule(_31_)
+      client.schedule(_33_)
       return destroy()
     end
   end
