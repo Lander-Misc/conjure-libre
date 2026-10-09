@@ -53,7 +53,7 @@
                 {:prefix "def"
                  :cb completion-cb})
               ((a.get-in mock-remote.send-calls [2 :cb]) 
-               (format-swank-return "(\"defun\") \"def\""))
+               (format-swank-return "\"defun\" \"\""))
               (swank.disconnect)
 
               (assert.has-substring 
@@ -75,7 +75,7 @@
                 {:prefix nil
                  :cb completion-cb})
               ((a.get-in mock-remote.send-calls [2 :cb]) 
-               (format-swank-return "(\"something\") \"\""))
+               (format-swank-return "\"something\" \"\""))
               (swank.disconnect)
 
               (assert.has-substring 
@@ -98,7 +98,7 @@
                 {:prefix "def"
                  :cb completion-cb})
               ((a.get-in mock-remote.send-calls [2 :cb]) 
-               (format-swank-return "(\"defun\") \"def\""))
+               (format-swank-return "\"defun\" \"\""))
               (swank.disconnect)
 
               (assert.same ["defunct" "defun"] (. completion-cb-calls 1)))))
@@ -131,10 +131,73 @@
                 {:prefix "s"
                  :cb completion-cb})
               ((a.get-in mock-remote.send-calls [2 :cb]) 
-               (format-swank-return "(\"symbol\") \"s\""))
+               (format-swank-return "\"symbol\" \"\""))
               (swank.disconnect)
 
-              (assert.same ["symbol"] (. completion-cb-calls 1)))))))
+              (assert.same ["symbol"] (. completion-cb-calls 1)))))
+
+        (it "evaluates the completion request in COMMON-LISP-USER with the buffer package as the argument"
+          (fn []
+            (mock-tsc.set-mock-completions [])
+            (swank.connect {})
+            (swank.completions
+              {:prefix "de"
+               :context "my-pkg"
+               :cb (fn [])})
+            (swank.disconnect)
+
+            (let [msg (a.get-in mock-remote.send-calls [2 :msg])]
+              (assert.has-substring "swank:simple%-completions \\\"de\\\" \\\"my%-pkg\\\"" msg)
+              (assert.has-substring "\"COMMON%-LISP%-USER\" t" msg))))
+
+        (it "merges classified swank completions with treesitter completions by word"
+          (fn []
+            (let [completion-cb-calls []
+                  completion-cb
+                  (fn [res]
+                    (table.insert completion-cb-calls res))]
+              (mock-tsc.set-mock-completions ["decf" "defunct"])
+
+              (swank.connect {})
+              (swank.completions
+                {:prefix "de"
+                 :cb completion-cb})
+              ((a.get-in mock-remote.send-calls [2 :cb])
+               (format-swank-return "\"debug\" \"---------\" \"decf\" \"-f---m---\""))
+              (swank.disconnect)
+
+              (assert.same
+                [{:word "decf" :kind "macro"} "defunct" "debug"]
+                (. completion-cb-calls 1)))))))
+
+    (describe "parse-completions"
+      (fn []
+        (it "pairs each name with the kind from its flags"
+          (fn []
+            (assert.same
+              ["debug" "foo" {:word "decf" :kind "macro"}]
+              (swank.parse-completions
+                "(\"debug\" \"---------\" \"foo\" \"\" \"decf\" \"-f---m---\")"))))
+
+        (it "returns nothing for NIL"
+          (fn []
+            (assert.same [] (swank.parse-completions "NIL"))))
+
+        (it "picks the most specific kind from the flags"
+          (fn []
+            (each [flags kind (pairs {"b--------" "variable"
+                                      "-f-------" "function"
+                                      "-fg------" "generic-function"
+                                      "---c-----" "class"
+                                      "----t----" "type"
+                                      "-f-ct----" "function"
+                                      "-f---m---" "macro"
+                                      "-f----s--" "special-operator"
+                                      "-------p-" "package"
+                                      "-f------a" "accessor"})]
+              (assert.same [{:word "x" :kind kind}]
+                           (swank.parse-completions
+                             (.. "(\"x\" \"" flags "\")"))))))))
 
     (describe "config"
       (fn []
@@ -174,7 +237,66 @@
                 {:prefix "dot"
                  :cb completion-cb})
               ((a.get-in mock-remote.send-calls [2 :cb]) 
-               (format-swank-return "(\"dotimes\") \"dot\""))
+               (format-swank-return "\"dotimes\" \"\""))
               (swank.disconnect)
 
-              (assert.same ["dots" "dotimes"] (. completion-cb-calls 1)))))))))
+              (assert.same ["dots" "dotimes"] (. completion-cb-calls 1)))))))
+
+    (describe "debugger"
+      (fn []
+        (it "logs the condition, restarts and backtrace, then invokes a restart by number"
+          (fn []
+            (let [logged []
+                  orig-append mock-log.append]
+              (set mock-log.append (fn [lines] (table.insert logged lines)))
+              (swank.connect {})
+              (swank.handle-event
+                (.. "(:debug 42 1 (\"break\" \"   [Condition of type SIMPLE-CONDITION]\" nil)"
+                    " ((\"CONTINUE\" \"Return from BREAK.\") (\"ABORT\" \"abort (#<THREAD \\\"worker\\\">)\"))"
+                    " ((0 \"(F 3)\") (1 \"(EVAL (F 3))\" (:restartable t))) (42))"))
+              (swank.invoke-restart 0)
+              (swank.disconnect)
+              (set mock-log.append orig-append)
+              (assert.same
+                ["; Debugger level 1: break"
+                 ";    [Condition of type SIMPLE-CONDITION]"
+                 "; Restarts:"
+                 ";  0: [CONTINUE] Return from BREAK."
+                 ";  1: [ABORT] abort (#<THREAD \"worker\">)"
+                 "; Backtrace:"
+                 ";  0: (F 3)"
+                 ";  1: (EVAL (F 3))"]
+                (. logged 1))
+              (assert.has-substring
+                "%(:emacs%-rex %(swank:invoke%-nth%-restart%-for%-emacs 1 0%) \"%*package%*\" 42 %d+%)"
+                (a.get-in mock-remote.send-calls [2 :msg])))))
+
+        (it "does nothing but log when there is no debugger to answer"
+          (fn []
+            (swank.connect {})
+            (swank.handle-event "(:debug-return 42 1 nil)")
+            (swank.invoke-restart 0)
+            (swank.disconnect)
+            (assert.are.equal 1 (length mock-remote.send-calls))))))
+
+    (describe "macroexpand"
+      (fn []
+        (it "sends the current form to swank-macroexpand-1 and logs the expansion"
+          (fn []
+            (let [logged []
+                  orig-append mock-log.append]
+              (set mock-log.append (fn [lines] (table.insert logged lines)))
+              (vim.cmd "new")
+              (vim.api.nvim_buf_set_lines 0 0 -1 false ["(when a b)"])
+              (vim.api.nvim_win_set_cursor 0 [1 1])
+              (swank.connect {})
+              (swank.macroexpand :swank-macroexpand-1)
+              (assert.has-substring
+                "%(swank:swank%-macroexpand%-1 \\\"%(when a b%)\\\"%)"
+                (a.get-in mock-remote.send-calls [2 :msg]))
+              ((a.get-in mock-remote.send-calls [2 :cb])
+               "(:return (:ok (\"\" \"\\\"(IF A\n    B)\\\"\")) 2)")
+              (swank.disconnect)
+              (vim.cmd "bwipeout!")
+              (set mock-log.append orig-append)
+              (assert.same ["(IF A" "    B)"] (. logged 1)))))))))

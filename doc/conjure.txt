@@ -490,6 +490,12 @@ configure the ones you care about one at a time you can set:
             Opens the log in the current window.
             Default: `"le"`
 
+                                                   *g:conjure#mapping#log_hud*
+`g:conjure#mapping#log_hud`
+            Opens the log in the HUD, even if `g:conjure#log#hud#enabled`
+            is `false`. It closes again when you move the cursor.
+            Default: `"lh"`
+
                                                 *g:conjure#mapping#log_toggle*
 `g:conjure#mapping#log_toggle`
             Toggles open or closed the log, using the last used log open
@@ -718,6 +724,16 @@ configure the ones you care about one at a time you can set:
               :let g:conjure#log#hud#ignore_low_priority = v:true
 <
             Default: `false`
+
+                                    *g:conjure#log#hud#open_before_first_eval*
+`g:conjure#log#hud#open_before_first_eval`
+            Allow the HUD to open before your first evaluation of the session.
+            Set this to `false` if the messages Conjure logs while it starts
+            or connects to a REPL, such as the connection status, should not
+            open the HUD. These messages are still written to the log. After
+            your first evaluation the HUD behaves as normal. You can open
+            the HUD at any time with |g:conjure#mapping#log_hud|.
+            Default: `true`
 
                                                  *g:conjure#log#hud#open_when*
 `g:conjure#log#hud#open_when`

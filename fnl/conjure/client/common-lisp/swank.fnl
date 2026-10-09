@@ -2,6 +2,7 @@
 (local core (autoload :conjure.nfnl.core))
 (local client (autoload :conjure.client))
 (local config (autoload :conjure.config))
+(local extract (autoload :conjure.extract))
 (local log (autoload :conjure.log))
 (local mapping (autoload :conjure.mapping))
 (local remote (autoload :conjure.remote.swank))
@@ -9,7 +10,6 @@
 (local text (autoload :conjure.text))
 (local ts (autoload :conjure.tree-sitter))
 (local cmpl (autoload :conjure.client.common-lisp.completions))
-(local util (autoload :conjure.util))
 
 (local M (define :conjure.client.common-lisp.swank))
 
@@ -53,7 +53,10 @@
     {:common_lisp
      {:swank
       {:mapping {:connect "cc"
-                 :disconnect "cd"}}}}}))
+                 :disconnect "cd"
+                 :invoke_restart "dr"
+                 :macroexpand_1 "m1"
+                 :macroexpand_all "ma"}}}}}))
 
 (local state (client.new-state
                   #(do
@@ -97,21 +100,23 @@
       (replace "\\" "\\\\")
       (replace "\"" "\\\"")))
 
-(fn send [msg context cb]
-  (log.dbg (.. "swank.send called with msg: " (core.pr-str msg) ", context: " (core.pr-str context)))
+(fn send-rex [form context thread cb]
+  "Send an :emacs-rex request for form. The trailing eval-id marries the
+  :return that swank sends back to cb, asynchronously."
   (with-conn-or-warn
     (fn [conn]
       (let [eval-id (core.get (core.update (state) :eval-id core.inc) :eval-id)]
-        ;; TODO: the 'eval-id' at the end is indicating the expression given
-        ;; this is so the results that return can be married up to the
-        ;; expression that is sent, asynchronously.
         (remote.send
           conn
           (str.join
-            ["(:emacs-rex (swank:eval-and-grab-output \""
-             (escape-string msg)
-             "\") \"" (or context "*package*") "\" t " eval-id ")"])
+            ["(:emacs-rex " form " \"" (or context "*package*") "\" " thread " " eval-id ")"])
           cb)))))
+
+(fn send [msg context cb]
+  (log.dbg (.. "swank.send called with msg: " (core.pr-str msg) ", context: " (core.pr-str context)))
+  (send-rex
+    (.. "(swank:eval-and-grab-output \"" (escape-string msg) "\")")
+    context "t" cb))
 
 (fn M.connect [opts]
   (log.dbg (.. "connect called with: " (core.pr-str opts)))
@@ -141,7 +146,9 @@
          (fn [err]
            (if err
              (display-conn-status err)
-             (M.disconnect)))}))
+             (M.disconnect)))
+
+         :on-event #(M.handle-event $1)}))
 
     (send ":ok" (fn [_]))))
 
@@ -286,6 +293,101 @@
   (try-ensure-conn)
   (M.eval-str (core.update opts :code #(.. "(describe '" $1 ")"))))
 
+(fn split-list [s]
+  "Top-level elements of the Lisp list printed in s, as strings.
+  (split-list \"(:a (b \\\"c d\\\") 1)\") => [\":a\" \"(b \\\"c d\\\")\" \"1\"]"
+  (let [items []
+        cur []]
+    (var depth 0)
+    (var in-str? false)
+    (var esc? false)
+    (fn flush []
+      (when (> (length cur) 0)
+        (table.insert items (table.concat cur))
+        (for [i (length cur) 1 -1] (tset cur i nil))))
+    (for [i 1 (length s)]
+      (let [c (string.sub s i i)]
+        (if
+          in-str? (do
+                    (table.insert cur c)
+                    (if esc? (set esc? false)
+                        (= c "\\") (set esc? true)
+                        (= c "\"") (set in-str? false)))
+          (and (= depth 0) (= c "(")) (set depth 1)
+          (and (= depth 1) (= c ")")) (do (flush) (set depth 0))
+          (and (= depth 1) (or (= c " ") (= c "\n"))) (flush)
+          (> depth 0) (do
+                        (table.insert cur c)
+                        (if (= c "\"") (set in-str? true)
+                            (= c "(") (set depth (+ depth 1))
+                            (= c ")") (set depth (- depth 1)))))))
+    items))
+
+(fn append-commented [lines s]
+  (each [_ line (ipairs (text.prefixed-lines s M.comment-prefix))]
+    (table.insert lines line))
+  lines)
+
+(fn show-debugger [[thread level condition restarts frames]]
+  (core.assoc (state) :debug {:thread thread :level level})
+  (let [[msg kind] (parse-separated-list condition)
+        rs (parse-separated-list restarts)
+        lines (append-commented [] (.. "Debugger level " level ": " msg))]
+    (append-commented lines kind)
+    (table.insert lines "; Restarts:")
+    (for [i 1 (length rs) 2]
+      (append-commented
+        lines
+        (.. " " (math.floor (/ (- i 1) 2)) ": [" (. rs i) "] " (. rs (+ i 1)))))
+    (table.insert lines "; Backtrace:")
+    (each [i frame (ipairs (parse-separated-list frames))]
+      (append-commented lines (.. " " (- i 1) ": " frame)))
+    (log.append lines {:break? true})))
+
+(fn M.handle-event [msg]
+  "Handle a swank message that is not the :return of a request."
+  (let [[kind & args] (split-list msg)]
+    (match kind
+      ":write-string" (display-stdout (core.first (parse-separated-list (core.first args))))
+      ":debug" (show-debugger args)
+      ":debug-return" (let [level (tonumber (. args 2))]
+                        (core.assoc (state) :debug
+                                    (when (> level 1)
+                                      {:thread (. args 1) :level (- level 1)}))
+                        (log.append [(.. "; Left debugger level " level)]))
+      ":ping" (with-conn-or-warn
+                #(remote.send $1 (.. "(:emacs-pong " (. args 1) " " (. args 2) ")"))))))
+
+(fn M.invoke-restart [n]
+  "Invoke restart number n of the innermost debugger level."
+  (let [dbg (state :debug)]
+    (if (and dbg n)
+      (send-rex
+        (.. "(swank:invoke-nth-restart-for-emacs " dbg.level " " n ")")
+        nil dbg.thread (fn [_]))
+      (log.append ["; Not in the debugger"]))))
+
+(fn unquote-lisp-string [s]
+  "Turn a printed Lisp string such as \"(IF A\\n B)\" back into its contents."
+  (-> (string.sub s 2 -2)
+      (string.gsub "\\(.)" "%1")))
+
+(fn M.macroexpand [swank-fn]
+  "Expand the form under the cursor with swank-fn (e.g. swank-macroexpand-1)
+  and append the expansion to the log."
+  (let [form (extract.form {})]
+    (when form
+      (M.eval-str
+        {:origin :custom
+         :passive? true
+         :context (M.context)
+         :code (.. "(swank:" swank-fn " \"" (escape-string form.content) "\")")
+         :on-result
+         (fn [result]
+           (log.append
+             (text.split-lines (unquote-lisp-string result))
+             {:break? true}))}))))
+
 (fn M.eval-file [opts]
   (try-ensure-conn)
   (M.eval-str
@@ -302,7 +404,25 @@
     :CommonLispConnect
     (config.get-in [:client :common_lisp :swank :mapping :connect])
     #(M.connect {})
-    {:desc "Connect to a REPL"}))
+    {:desc "Connect to a REPL"})
+
+  (mapping.buf
+    :CommonLispInvokeRestart
+    (config.get-in [:client :common_lisp :swank :mapping :invoke_restart])
+    #(M.invoke-restart (tonumber (vim.fn.input "Restart: ")))
+    {:desc "Invoke a debugger restart by number"})
+
+  (mapping.buf
+    :CommonLispMacroexpand1
+    (config.get-in [:client :common_lisp :swank :mapping :macroexpand_1])
+    #(M.macroexpand :swank-macroexpand-1)
+    {:desc "Macroexpand the current form once"})
+
+  (mapping.buf
+    :CommonLispMacroexpandAll
+    (config.get-in [:client :common_lisp :swank :mapping :macroexpand_all])
+    #(M.macroexpand :swank-macroexpand-all)
+    {:desc "Fully macroexpand the current form"}))
 
 (fn M.on-load []
   (when (completions-enabled?) 
@@ -312,15 +432,59 @@
 (fn M.on-exit []
   (M.disconnect))
 
-(fn build-completions-code 
+(fn build-completions-code
   [prefix context]
-  (.. "(swank:simple-completions " (core.pr-str prefix) " " (core.pr-str context) ")"))
+  "SLIME 2.30 and older return (names common-prefix), 2.31 and newer return
+  ((name flags qualified-name) ...). Both are flattened to (name flags ...) in
+  Lisp so parse-separated-list can read them."
+  (.. "(let ((r (swank:simple-completions " (core.pr-str prefix) " " (core.pr-str context) ")))"
+      " (loop for e in (if (stringp (second r)) (mapcar #'list (first r)) r)"
+      " append (list (first e) (or (second e) \"\"))))"))
 
-(fn format-for-cmpl
-  [rs]
-  (let [cmpls (parse-separated-list rs)]
-    (table.remove cmpls) ; last result is prefix
-    cmpls))
+;; Flags come from swank's symbol-classification-string, most specific first.
+(local kind-by-flag
+  [["s" "special-operator"]
+   ["m" "macro"]
+   ["g" "generic-function"]
+   ["a" "accessor"]
+   ["f" "function"]
+   ["c" "class"]
+   ["t" "type"]
+   ["b" "variable"]
+   ["p" "package"]])
+
+(fn flags->kind [flags]
+  (accumulate [kind nil
+               _ [flag flag-kind] (ipairs kind-by-flag)
+               &until kind]
+    (when (string.find flags flag 1 true)
+      flag-kind)))
+
+(fn M.parse-completions [result]
+  (let [strs (parse-separated-list result)]
+    (fcollect [i 1 (length strs) 2]
+      (let [word (. strs i)
+            kind (flags->kind (or (. strs (+ i 1)) ""))]
+        (if kind
+          {:word word :kind kind}
+          word)))))
+
+(fn completion-word [completion]
+  (if (= :string (type completion))
+    completion
+    completion.word))
+
+(fn merge-completions [static-completions swank-completions]
+  (let [swank-by-word (collect [_ c (ipairs swank-completions)]
+                        (completion-word c) c)
+        seen {}
+        merged []]
+    (each [_ c (ipairs (core.concat static-completions swank-completions))]
+      (let [word (completion-word c)]
+        (when (not (. seen word))
+          (tset seen word true)
+          (table.insert merged (or (. swank-by-word word) c)))))
+    merged))
 
 ;; completions - partially copied from client/fennel/aniseed.fnl.
 (fn build-completions [opts]
@@ -330,15 +494,17 @@
      (let [code (build-completions-code opts.prefix opts.context)
            result-fn
            (fn [results]
-             (let [parsed-results (format-for-cmpl results)
-                   all-cmpl (core.concat static-completions parsed-results)
-                   cmpl-list (util.ordered-distinct all-cmpl)]
+             (let [cmpl-list (merge-completions
+                               static-completions
+                               (M.parse-completions results))]
                ;(log.append [(.. "; in completions()'s result-fn, called with: " (core.pr-str results))] )
                ;(log.append [(..  "; in completions()'s result-fn, calling opts.cb with " (core.pr-str cmpl-list))])
                (opts.cb cmpl-list) ; return the list of completions
                ))
            ]
        (core.assoc opts :code code)
+       ;; The buffer's package might not use CL, the code above needs it.
+       (core.assoc opts :context "COMMON-LISP-USER")
        (core.assoc opts :on-result result-fn)
        (core.assoc opts :passive? true)
        (M.eval-str opts))

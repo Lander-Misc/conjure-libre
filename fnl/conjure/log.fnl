@@ -20,6 +20,7 @@
      :hud {:id nil
            :timer nil
            :created-at-ms 0
+           :eval-seen? false
            :low-priority-spam {:streak 0
                                :help-displayed? false}}
      :jump-to-latest {:mark nil
@@ -241,8 +242,14 @@
              0]))
         (vim.api.nvim_win_set_cursor M.state.hud.id [line-count 0])))))
 
+(fn M.mark-eval-seen! []
+  (set M.state.hud.eval-seen? true))
+
 (fn display-hud [opts]
   (when (and (config.get-in [:log :hud :enabled])
+
+             (or (config.get-in [:log :hud :open_before_first_eval])
+                 M.state.hud.eval-seen?)
 
              ;; Don't display when the user is already doing something in a floating window.
              (not (current-window-floating?))
@@ -253,6 +260,10 @@
                       (not (core.get opts :low-priority?)))))
     (M.clear-close-hud-passive-timer)
     (hook.exec :display-hud opts)))
+
+(fn M.show-hud []
+  (M.clear-close-hud-passive-timer)
+  (hook.exec :display-hud {}))
 
 (fn win-visible? [win]
   (= (vim.fn.tabpagenr)

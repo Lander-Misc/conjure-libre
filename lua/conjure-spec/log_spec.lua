@@ -70,4 +70,72 @@ local function _2_()
   end
   return describe("linked_to_client_state enabled but no state key set", _15_)
 end
-return describe("log-buf?", _2_)
+describe("log-buf?", _2_)
+local function _19_()
+  local function hud_floating_3f()
+    local win = log.state.hud.id
+    return (("number" == type(win)) and vim.api.nvim_win_is_valid(win) and ("" ~= vim.api.nvim_win_get_config(win).relative))
+  end
+  local function _20_()
+    log["close-hud"]()
+    return config["assoc-in"]({"log", "hud", "enabled"}, true)
+  end
+  before_each(_20_)
+  local function _21_()
+    client["with-filetype"]("fennel", log["show-hud"])
+    return assert.is_true(hud_floating_3f())
+  end
+  it("opens the HUD", _21_)
+  local function _22_()
+    config["assoc-in"]({"log", "hud", "enabled"}, false)
+    client["with-filetype"]("fennel", log["show-hud"])
+    return assert.is_true(hud_floating_3f())
+  end
+  it("opens the HUD even when the automatic HUD is disabled", _22_)
+  local function _23_()
+    client["with-filetype"]("fennel", log["show-hud"])
+    local first_win = log.state.hud.id
+    client["with-filetype"]("fennel", log["show-hud"])
+    return assert.are.equals(first_win, log.state.hud.id)
+  end
+  return it("reuses the open HUD window", _23_)
+end
+describe("show-hud", _19_)
+local function _24_()
+  local function hud_open_3f()
+    local win = log.state.hud.id
+    return (("number" == type(win)) and vim.api.nvim_win_is_valid(win))
+  end
+  local function append_line()
+    local function _25_()
+      return log["immediate-append"]({"; hello"}, {})
+    end
+    return client["with-filetype"]("fennel", _25_)
+  end
+  local function _26_()
+    log["close-hud"]()
+    log.state.hud["eval-seen?"] = false
+    config["assoc-in"]({"log", "hud", "enabled"}, true)
+    return config["assoc-in"]({"log", "hud", "open_before_first_eval"}, true)
+  end
+  before_each(_26_)
+  local function _27_()
+    append_line()
+    return assert.is_true(hud_open_3f())
+  end
+  it("opens the HUD before any eval by default", _27_)
+  local function _28_()
+    config["assoc-in"]({"log", "hud", "open_before_first_eval"}, false)
+    append_line()
+    return assert.is_false(hud_open_3f())
+  end
+  it("keeps the HUD closed before the first eval when disabled", _28_)
+  local function _29_()
+    config["assoc-in"]({"log", "hud", "open_before_first_eval"}, false)
+    log["mark-eval-seen!"]()
+    append_line()
+    return assert.is_true(hud_open_3f())
+  end
+  return it("opens the HUD after the first eval when disabled", _29_)
+end
+return describe("open_before_first_eval", _24_)

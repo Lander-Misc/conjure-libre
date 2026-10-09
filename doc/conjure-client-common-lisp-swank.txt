@@ -41,6 +41,20 @@ configuration options relevant to these mappings.
 
 <localleader>cd          Disconnect from the REPL.
 
+<localleader>dr          Invoke a restart of the debugger by number. When an
+                         evaluation signals an unhandled condition or calls
+                         `(break)`, the log shows the condition, the numbered
+                         restarts and the backtrace. Other evaluations keep
+                         working while the debugger waits.
+
+<localleader>m1          Macroexpand the form under the cursor once
+                         (`swank:swank-macroexpand-1`) and show the result
+                         in the log.
+
+<localleader>ma          Fully macroexpand the form under the cursor
+                         (`swank:swank-macroexpand-all`) and show the result
+                         in the log.
+
 ==============================================================================
 CONFIGURATION                 *conjure-client-common-lisp-swank-configuration*
 
@@ -76,5 +90,21 @@ All configuration can be set as described in |conjure-configuration|.
                      `false`
 
             Default: `true`
+
+                   *g:conjure#client#common_lisp#swank#mapping#invoke_restart*
+`g:conjure#client#common_lisp#swank#mapping#invoke_restart`
+            Prompt for a restart number and invoke it in the innermost
+            debugger level.
+            Default: `"dr"`
+
+                    *g:conjure#client#common_lisp#swank#mapping#macroexpand_1*
+`g:conjure#client#common_lisp#swank#mapping#macroexpand_1`
+            Macroexpand the current form once.
+            Default: `"m1"`
+
+                  *g:conjure#client#common_lisp#swank#mapping#macroexpand_all*
+`g:conjure#client#common_lisp#swank#mapping#macroexpand_all`
+            Fully macroexpand the current form.
+            Default: `"ma"`
 
 vim:tw=78:sw=2:ts=2:ft=help:norl:et:listchars=
